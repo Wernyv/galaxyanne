@@ -711,8 +711,13 @@ enemies={
   local fm = stage.convoy.forms
   for j=1,#cv do
    for i=1,6 do
-    s.annes[sq]=
+    local a =
        build_anne(cv[j],i,j)
+    a.y = -2*a.y
+    a.s = 7
+    a.f = 3
+    s:charged()
+    s.annes[sq] = a
     assert(cv[j]!=0)
     assert(s.annes[sq]!=nil)
     if s.form[fm[j]][i]==1 then
