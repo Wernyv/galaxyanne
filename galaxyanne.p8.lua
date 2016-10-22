@@ -285,7 +285,7 @@ anne_0 = { -- abstract
    local go = false
    if enemies:exist(s.i,s.j-1)==false 
     and enemies.charge_cnt==0 
-      --and flr(rnd())==5 then
+    and flr(rnd(5))==3 then -- 1/5
     then
     s.f=1 -- turn-out
     s.s=7 -- spr for #1
@@ -604,7 +604,10 @@ anne_zg={
 
  _charge =function(s)
   anne_0._charge(s)
-  s.s = 1
+  s.s = 1 -- keep '-'
+  if s.y<0 and s.f=2 then
+   -- cancel charge-loop
+   
  end,
 
  _setblt =function(s)
@@ -614,7 +617,9 @@ anne_zg={
  end,
 
  _turnin =function(s)
-  s.f = 0
+  -- skip to comvoy
+  enemies:returned(s) 
+  s.f = 0 -- convoy
  end,
 }
 
