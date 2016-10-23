@@ -979,6 +979,9 @@ player={
  end,
  ---
  update =function(s)
+  if s.y>118 then -- rollout
+   s.y -= (s.y-118)/2
+  end
   -- crush check
   --local x1=s.x+4
   --local y1=s.y+7
@@ -1075,7 +1078,8 @@ player={
  rollout =function(s)
   s.rest-=1
   s.x=63
-  s.y=118
+  --s.y=118
+  s.y=127+16
   s.mx=-200
   s.my=-200
   s.en_shot = false
