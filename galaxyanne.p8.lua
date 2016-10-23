@@ -12,18 +12,6 @@ t_dnce={ -- dance frames
        {x=1, y=-1,s=1},-- 2
        {x=0, y=0, s=2},-- 3
        {x=-1,y=-1,s=1}}-- 4
-t_blk={ -- blink sprites
-       {  0,  2,  4}, -- 1 00 #1
-       { 32, 34, 36}, -- 2 00 #2
-       {  6,  8, 10}, -- 3 22'
-       { 38, 40, 42}, -- 4 45'
-       { 12, 44, 46}, -- 5 67'
-       { 64, 66, 68}, -- 6 90'
-       { 70, 70, 70}, -- 7 dead 1
-       { 72, 72, 72}, -- 8 dead 2
-       { 74, 74, 74}, -- 9 dead 3
-       { 76,108,110}, -- 10 hyde
-       {100,100,100}} --11 ball
 t_sprid={ -- sprite id
    0, -- 1 ('-')
    6, -- 2 |'-'|
@@ -392,11 +380,7 @@ anne_0 = { -- abstract
  end,
 
  draw =function(s)
-  --local _sp=t_spr[s.s]
-  --local  sp=t_blk[_sp[1]][flr(s.m/2)+1]
   pal(8,s.col)
-  --spr(sp,s.x,s.y,2,2,
-  --    _sp[2],_sp[3])
   putat(s.s,s.x,s.y,flr(s.m/3))
  end,
 
@@ -713,7 +697,7 @@ enemies={
    for i=1,6 do
     local a =
        build_anne(cv[j],i,j)
-    a.y = -2*a.y
+    a.y = -5*a.y
     a.s = 7
     a.f = 3
     s:charged()
