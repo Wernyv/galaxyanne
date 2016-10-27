@@ -126,6 +126,7 @@ function debug_hud()
  dprint_y=10
  color(11)
  dprint("enum:"..enemies.anum)
+ dprint("chgn:"..enemies.charge_num)
  dprint("chgc:"..enemies.charge_cnt)
  dprint("scene:"..scene.name)
  dprint("kills:"..player.kills)
@@ -653,6 +654,7 @@ enemies={
  anum=0,          -- anne lives
  en_charge=false, -- enable charge
  charge_cnt=0,
+ charge_num=0,
  ---
  init=function(s)
   -- init rest positions
@@ -698,14 +700,14 @@ enemies={
     local a =
        build_anne(cv[j],i,j)
     a.y = -5*a.y
-    a.s = 7
-    a.f = 3
-    s:charged()
     s.annes[sq] = a
     assert(cv[j]!=0)
     assert(s.annes[sq]!=nil)
     if s.form[fm[j]][i]==1 then
      s.anum += 1
+     s.annes[sq].s = 7 -- (,-,)
+     s.annes[sq].f = 3 -- turn-in
+     s:charged()
     else
      s.annes[sq].f=-1
     end
@@ -779,7 +781,7 @@ enemies={
   end
   -- vs bullets
   for b in all(s.bullets) do
-   if b.a then
+   if b.a then -- is active
 --    if colligion(x,y,c1,
 --          b.x,b.y,t_blt[b.t].c) then
 --     return true
@@ -990,7 +992,7 @@ player={
   --local col={4,7,4+6,7+7}
   if s.crush==0 and 
      --enemies:crushchk(x1,y1,x2,y2) 
-     enemies:crushchk(s.x,s.y,col) 
+     enemies:crushchk(s.x,s.y,t_sprite[25].c) 
      then
     s.en_shot = false
     s.crush = 1
@@ -1056,16 +1058,16 @@ player={
   else
    s.crush +=1 -- crush animation timer
    if s.crush<5 then
-    spr(14,s.x,s.y,2,2)
-    spr(70,s.x-2,s.y+2,2,2)
+    putat(26,s.x,s.y,0)
+    putat(20,s.x,s.y,0)
    elseif s.crush<10 then
-    spr(102,s.x-2,s.y,2,2)
-    spr(74,s.x-2,s.y+2,2,2)
+    putat(27,s.x,s.y,0)
+    putat(21,s.x,s.y+2,0)
    elseif s.crush<15 then
-    spr(104,s.x-2,s.y,2,2)
-    spr(76,s.x-2,s.y+2,2,2)
+    putat(28,s.x,s.y,0)
+    putat(22,s.x,s.y+4,0)
    elseif s.crush<20 then
-    spr(106,s.x-2,s.y,2,2)
+    putat(28,s.x,s.y,0)
    end
   end
   -- missile
@@ -1446,7 +1448,7 @@ scenes={
    enemies.en_charge=false
    if enemies:is_clear() then
     enemies:reset()
-    sfx(5,3)
+    sfx(5,2)
     s.reset = true
    end
    if stage.back!=nil and
