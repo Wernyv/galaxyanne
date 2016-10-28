@@ -592,8 +592,10 @@ anne_zg={
   s.s = 1 -- keep '-'
   if s.y<0 and s.f==2 then
    -- cancel charge-loop
-   enemies:returned(s)
-   s.f=0
+   s.f =  3 -- return
+   s.y =-16 -- rewind y to top
+   s.c =  0 -- turn counter
+   s.dx=  0
   end
  end,
 
@@ -782,10 +784,10 @@ enemies={
   -- vs bullets
   for b in all(s.bullets) do
    if b.a then -- is active
---    if colligion(x,y,c1,
---          b.x,b.y,t_blt[b.t].c) then
---     return true
---    end
+    if colligion(x,y,c1,
+        b.x,b.y,t_sprite[b.t+28].c) then
+     return true
+    end
    end
   end
   return false
@@ -1349,6 +1351,7 @@ stages={
           forms={4,1 }}, -- form/line
   charge=50, -- charge interval init
   back=backs.training,
+  trn=1, -- noiz transition
   nxt=3
  },  
  { str="stage 1",
@@ -1357,6 +1360,7 @@ stages={
           forms={4,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
+  trn=1, -- noiz transition
   nxt=4
  },
  { str="stage 2",
@@ -1475,6 +1479,15 @@ scenes={
   draw =function(s)
    player:draw()
    enemies:draw()
+   if s.reset and -- new stage 
+      stage.trn==1 and -- noiz
+      s.timer<5 then -- 1/65sec
+    for i=0,128*128-1 do
+     if rnd(5)<=2 then
+      pset(i%128,i/128,5)
+     end
+    end
+   end
    color(7)
    print(stage.str,50,72)
    if s.timer==60 then
