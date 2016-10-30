@@ -248,6 +248,7 @@ anne_0 = { -- abstract
   elseif s.f==3 then -- return to convoy
    s:_turnin()
    if s.f!=3 then
+    assert(enemies.charge_num>0)
     enemies:returned()
    end 
   elseif s.f==4 then -- dead
@@ -391,6 +392,7 @@ anne_0 = { -- abstract
   if s.f==1 or   -- turn out 
      s.f==2 or   -- charge
      s.f==3 then -- turn in
+   assert(enemies.charge_num>0)
    enemies:returned()
    b *= 4
   end
@@ -577,10 +579,10 @@ anne_zg={
    s.l =0 -- loop counter
    s.fc=0 -- ready to fire
   end
-  if s.sqc<30 then
+  if s.sqc<25 then
    s.s = 23 -- "
   elseif s.sqc<32 then
-   s.s = 24
+   s.s = 24 -- (_)
   else
    s.s = 2
   end
@@ -606,8 +608,9 @@ anne_zg={
  end,
 
  _turnin =function(s)
-  -- skip to comvoy
-  enemies:returned(s) 
+  -- skip to convoy
+  --assert(enemies.charge_num>0)
+  --enemies:returned(s) 
   s.f = 0 -- convoy
  end,
 }
@@ -701,18 +704,23 @@ enemies={
    for i=1,6 do
     local a =
        build_anne(cv[j],i,j)
-    a.y = -5*a.y
-    s.annes[sq] = a
     assert(cv[j]!=0)
-    assert(s.annes[sq]!=nil)
+    assert(a!=nil)
     if s.form[fm[j]][i]==1 then
      s.anum += 1
-     s.annes[sq].s = 7 -- (,-,)
-     s.annes[sq].f = 3 -- turn-in
-     s:charged()
+     a.s = 1 -- ('-')
+     a.f = 0 -- convoy
+     if stage.convoy.noc==nil then
+      -- cancel fly-in
+      a.y = -5*a.y
+      a.s = 7 -- (,-,)
+      a.f = 3 -- turn-in
+      s:charged()
+     end
     else
-     s.annes[sq].f=-1
+     a.f=-1 -- inactive
     end
+    s.annes[sq] = a
     sq += 1
    end
   end
@@ -1162,9 +1170,9 @@ stars={ -- bg particles
     p.y-=128
     p.m=s.mode
    end
-   -- tincle
+   -- twincle
    p.f+=1
-   if(p.f>12)p.f=0
+   if(p.f>20)p.f=0
    -- for mode:3(storm)
    if p.m==3 then
     p.y+=(p.v*s.sfrm)/150
@@ -1191,14 +1199,14 @@ stars={ -- bg particles
   for i,p in pairs(s.pts) do
    if p.m==1 then
     color(6)
-    if p.f<6 then
+    if p.f<10 then
      pset(p.x,flr(p.y)) end
    elseif p.m==2 then
     color(3)
     pset(p.i,(s.posy+p.j)%128)
    elseif p.m==3 then
     color(13)
-    if p.f<6 then
+    if p.f<10 then
      line(p.x,p.y,
       p.x,p.y+p.v*5*s.sfrm/150)
     end 
@@ -1252,7 +1260,7 @@ backs={
   draw =function(s)
    stars:draw()
    if stars.sfrm>120 then
-    camera(rnd(3)-2,0)
+    camera(flr(rnd(3))-2,0)
    end
   end
  }
@@ -1348,7 +1356,8 @@ stages={
  { str="stage 0",
   sub="simulation",
   convoy={types={1,1 },  -- type/line
-          forms={4,1 }}, -- form/line
+          forms={4,1 }, -- form/line
+          noc=1}, -- cancel fly-in
   charge=50, -- charge interval init
   back=backs.training,
   trn=1, -- noiz transition
