@@ -712,7 +712,7 @@ enemies={
      a.f = 0 -- convoy
      if stage.convoy.noc==nil then
       -- cancel fly-in
-      a.y = -5*a.y
+      a.y = -10*a.y
       a.s = 7 -- (,-,)
       a.f = 3 -- turn-in
       s:charged()
@@ -1220,14 +1220,12 @@ backs={
   name="stars",
   ---
   new =function(s)
-   stars:gradto(1)
+   stars:switchto(1)
    return s
   end,
-  ---
   update =function(s)
    stars:update()
   end,
-  ---
   draw =function(s)
    stars:draw()
   end,
@@ -1253,7 +1251,6 @@ backs={
    stars:switchto(3)
    return s
   end,
-  ---
   update =function(s)
    stars:update()
   end,
@@ -1304,7 +1301,7 @@ typestr={
 
 hud={
  ccnt = 0, -- console counter
- csec = 0,  -- console limit
+ csec = 0, -- console limit
  types={nil,nil,nil,nil},
  ---
  update =function(s)
@@ -1355,8 +1352,8 @@ stages={
  },
  { str="stage 0",
   sub="simulation",
-  convoy={types={1,1 },  -- type/line
-          forms={4,1 }, -- form/line
+  convoy={types={1,1,1 },  -- type/line
+          forms={4,1,1 }, -- form/line
           noc=1}, -- cancel fly-in
   charge=50, -- charge interval init
   back=backs.training,
@@ -1365,7 +1362,7 @@ stages={
  },  
  { str="stage 1",
   sub="encount",
-  convoy={types={2,1 },  -- type/line
+  convoy={types={2,2 },  -- type/line
           forms={4,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
@@ -1373,7 +1370,7 @@ stages={
   nxt=4
  },
  { str="stage 2",
-  convoy={types={3,2,1 },  -- type/line
+  convoy={types={3,2,2 },  -- type/line
           forms={2,1,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
@@ -1404,7 +1401,7 @@ stages={
  { str="stage 4",
   convoy={types={3,2,2 },  -- type/line
           forms={2,1,1 }}, -- form/line
-  charge=50, -- charge interval init
+  charge=40, -- charge interval init
   back = backs.stars,
   clear =function(s)
    stars.sfrv=-1
@@ -1413,7 +1410,6 @@ stages={
    return true
   end
  }
-
 }
 
 -----------------------------
@@ -1585,7 +1581,7 @@ scenes={
    if player:is_idle() and
       enemies:is_idle() then
     if stage.nxt==nil then
-     -- all clear
+     scene =scenes.complete:new()
     elseif s.timer>30 then
      -- to nextstage
      stage =stages[stage.nxt]
@@ -1623,6 +1619,24 @@ scenes={
     enemies:draw()
     print("game over", 48,64)
    end
+ },
+
+ complete={
+  name="complete",
+  ---
+  new =function(s)
+   return s
+  end,
+  update =function(s)
+   --endanim
+   if btn(5) then
+    scene = scenes.title:new()
+   end
+  end,
+  ---
+  draw =function(s)
+   print("to be continued...",28,65)
+  end
  }
 }
 
