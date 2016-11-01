@@ -539,6 +539,51 @@ anne_zk2s = {
  end
 }
 
+anne_gf={
+ new = function(self,_i,_j)
+  local obj = anne_zk2:new(_i,_j)
+  obj._charge = self._charge
+  obj.typ = 6
+  obj.col = 12 -- lblue
+  obj.p   = 4 -- score
+  return obj
+ end,
+
+ _charge =function(s)
+  if s.y<100 then
+   if player.x+s.margn<s.x then
+    s.vx-=s.ax end
+   if s.x<player.x-s.margn then
+    s.vx+=s.ax end
+  end
+  if(s.vx<=-s.maxvx)s.vx=-s.maxvx
+  if(s.vx>= s.maxvx)s.vx=s.maxvx
+  s.x+=s.vx
+  s.y+=s.vy
+  an_rot_p(s) -- rotate to player
+  -- state change
+  if s.y>128 then -- loopback
+   s.l+=1
+   if s.l>=3 then -- 3 loops
+    s.f=-1 -- escaped
+   elseif enemies.anum>4 or 
+          enemies.en_charge==false then
+    s.f =  3 -- return
+    s.y =-16 -- rewind y to top
+    s.s = 15 -- 
+    s.c =  0 -- turn counter
+    s.dx=  0
+   else
+    -- rewind top and x adjust
+    s.y=-16
+    if s.x<0   then s.x=0 end
+    if s.x>120 then s.x=120 end
+   end
+  end
+ end,
+
+}
+
 anne_zg={
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
@@ -623,6 +668,7 @@ anne_types={
   anne_zk2,
   anne_zk2s,
   anne_zg,
+  anne_gf,
 }
 
 function build_anne(n,i,j)
@@ -1362,7 +1408,7 @@ stages={
  },  
  { str="stage 1",
   sub="encount",
-  convoy={types={2,2 },  -- type/line
+  convoy={types={6,2 },  -- type/line
           forms={4,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
