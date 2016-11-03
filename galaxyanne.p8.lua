@@ -215,6 +215,7 @@ anne_0 = { -- abstract
    _convoy =self._convoy,
    _turnout=self._turnout, 
    _charge =self._charge,
+   _chgmov =self._chgmov,
    _fire   =self._fire,
    _setblt =self._setblt,
    _turnin =self._turnin
@@ -312,17 +313,18 @@ anne_0 = { -- abstract
 
  _charge =function(s)
   -- move
-  if s.y<100 then
-   if player.x+s.margn<s.x then
-    s.vx-=s.ax end
-   if s.x<player.x-s.margn then
-    s.vx+=s.ax end
-  end
-  if(s.vx<=-s.maxvx)s.vx=-s.maxvx
-  if(s.vx>= s.maxvx)s.vx=s.maxvx
-  s.x+=s.vx
-  s.y+=s.vy
-  an_rot_p(s) -- rotate to player
+  s:_chgmov()
+--  if s.y<100 then
+--   if player.x+s.margn<s.x then
+--    s.vx-=s.ax end
+--   if s.x<player.x-s.margn then
+--    s.vx+=s.ax end
+--  end
+--  if(s.vx<=-s.maxvx)s.vx=-s.maxvx
+--  if(s.vx>= s.maxvx)s.vx=s.maxvx
+--  s.x+=s.vx
+--  s.y+=s.vy
+--  an_rot_p(s) -- rotate to player
   -- state change
   if s.y>128 then -- loopback
    s.l+=1
@@ -342,6 +344,22 @@ anne_0 = { -- abstract
     if s.x>120 then s.x=120 end
    end
   end
+ end,
+
+ _chgmov =function(s)
+  if s.y<100 then
+   if player.x+s.margn<s.x then
+    s.vx-=s.ax end
+   if s.x<player.x-s.margn then
+    s.vx+=s.ax end
+  end
+  if s.vx<=-s.maxvx then
+   s.vx=-s.maxvx end
+  if s.vx>= s.maxvx then
+   s.vx=s.maxvx end
+  s.x+=s.vx
+  s.y+=s.vy
+  an_rot_p(s) -- rotate to player
  end,
 
  _fire =function(s)
@@ -384,6 +402,10 @@ anne_0 = { -- abstract
  draw =function(s)
   pal(8,s.col)
   putat(s.s,s.x,s.y,flr(s.m/3))
+  if s.x<-8 then
+   spr(93,0,s.y-1) end
+  if s.x>128+8 then
+   spr(93,128-8,s.y-1,1,1,true,false) end
  end,
 
  hit =function(s)
@@ -539,51 +561,6 @@ anne_zk2s = {
  end
 }
 
-anne_gf={
- new = function(self,_i,_j)
-  local obj = anne_zk2:new(_i,_j)
-  obj._charge = self._charge
-  obj.typ = 6
-  obj.col = 12 -- lblue
-  obj.p   = 4 -- score
-  return obj
- end,
-
- _charge =function(s)
-  if s.y<100 then
-   if player.x+s.margn<s.x then
-    s.vx-=s.ax end
-   if s.x<player.x-s.margn then
-    s.vx+=s.ax end
-  end
-  if(s.vx<=-s.maxvx)s.vx=-s.maxvx
-  if(s.vx>= s.maxvx)s.vx=s.maxvx
-  s.x+=s.vx
-  s.y+=s.vy
-  an_rot_p(s) -- rotate to player
-  -- state change
-  if s.y>128 then -- loopback
-   s.l+=1
-   if s.l>=3 then -- 3 loops
-    s.f=-1 -- escaped
-   elseif enemies.anum>4 or 
-          enemies.en_charge==false then
-    s.f =  3 -- return
-    s.y =-16 -- rewind y to top
-    s.s = 15 -- 
-    s.c =  0 -- turn counter
-    s.dx=  0
-   else
-    -- rewind top and x adjust
-    s.y=-16
-    if s.x<0   then s.x=0 end
-    if s.x>120 then s.x=120 end
-   end
-  end
- end,
-
-}
-
 anne_zg={
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
@@ -658,6 +635,74 @@ anne_zg={
   --enemies:returned(s) 
   s.f = 0 -- convoy
  end,
+}
+
+anne_gf={
+ new = function(self,_i,_j)
+  local obj = anne_zk2:new(_i,_j)
+  obj._chgmov = self._chgmov
+  obj._fire = self._fire
+  obj.fi  = 3 -- fire interval
+  obj.typ = 6
+  obj.col = 12 -- lblue
+  obj.p   = 4 -- score
+  obj.ax  = 0.15
+  return obj
+ end,
+
+ _chgmov =function(s)
+  if s.vx==0 then
+   s.ax = abs(s.ax)*sgn(player.x-s.x)
+  end
+  if s.y<100 then
+   if sgn(s.x-player.x)==sgn(s.vx) and
+      abs(s.vx)>=s.maxvx then
+    s.ax *= -1
+   end
+  end
+  s.vx += s.ax
+  if s.vx<=-s.maxvx then
+   s.vx=-s.maxvx end
+  if s.vx>= s.maxvx then
+   s.vx=s.maxvx end
+  s.x+=s.vx
+  s.y+=s.vy
+  an_rot_p(s) -- rotate to player
+  -- state change
+--  if s.y>128 then -- loopback
+--   s.l+=1
+--   if s.l>=3 then -- 3 loops
+--    s.f=-1 -- escaped
+--   elseif enemies.anum>4 or 
+--          enemies.en_charge==false then
+--    s.f =  3 -- return
+--    s.y =-16 -- rewind y to top
+--    s.s = 15 -- 
+--    s.c =  0 -- turn counter
+--    s.dx=  0
+--   else
+--    -- rewind top and x adjust
+--    s.y=-16
+--    if s.x<0   then s.x=0 end
+--    if s.x>120 then s.x=120 end
+--   end
+--  end
+ end,
+
+ _fire =function(s)
+  -- fire control (random)
+  if s.fc>0 or s.y>80 then
+   return end
+--  if(abs(player.x-s.x)>50)  return
+--  if flr(rnd(s.fr)) == 5 and
+--     s.y<80 then
+  if abs(s.vx)<=0.6 then
+   if s:_setblt()==true then
+    s.fc=s.fi
+   end
+  end
+ end,
+
 }
 
 -------------------------------------
@@ -1698,7 +1743,7 @@ __gfx__
 004440ffff044400004440ffff044400004440ffff044400000440ffff044000000440ffff044000000440ffff04400000000000000000000067006870076000
 00440000000044000044000000004400004400000000440000044000000440000004400000044000000440000004400002000000000000000076076676066000
 0004080000804000000408000080400000040800008040000000400000040000000040000004000000004000000400002e200000000000000075076176057000
-000040000004000000004000000400000000400000040000000040000004000000004000000400000000400000040000e7e0000000000000007d776c766d7000
+0000400000040000000040000004000000004000000400000000400000040000000040000004000000004000000400002720000000000000007d776c766d7000
 0008040000408000000804000040800000080400004080000008480000848000000848000084800000084800008480002e200000000000000078776c76687000
 00000000000000000000000000000000000000000000000000004000000400000000400000040000000040000004000002000000070000000072d76d76d27000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000766000000077567566577000
@@ -1728,9 +1773,9 @@ __gfx__
 0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000000788000000000000000000000
 0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000000700000000000000000000000
 00000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000700000000000000000000000
-00000000ff55444400000000ff5f444400000000ff5f444400000000ffff444400000000ffff444400000000ffff444400000000000000000000000000000000
-000000000eff4444000000000eff4444000000000e5f444400000000ff55444400000000ff5f444400000000ff5f444400000000000000000000000000000000
-000000004444444000000000444444400000000044444440000008000fef4444000008000fef4444000008000e5f444400000000000000000000000000000000
+00000000ff55444400000000ff5f444400000000ff5f444400000000ffff444400000000ffff444400000000ffff444400000000080000000000000000000000
+000000000eff4444000000000eff4444000000000e5f444400000000ff55444400000000ff5f444400000000ff5f444400000000880000000000000000000000
+000000004444444000000000444444400000000044444440000008000fef4444000008000fef4444000008000e5f444400000000080000000000000000000000
 00008044444440000000804444444000000080444444400000004444444444400000444444444440000044444444444000000000000000000000000000000000
 00044400000000000004440000000000000444000000000000000804444440000000080444444000000008044444400000000000000000000000000000000000
 00008000000000000000800000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
