@@ -570,7 +570,7 @@ anne_zg={
   -- for fire
   obj.fi  = 10 -- interval
   obj._convoy = self._convoy
-  obj._turnout = self._turnout
+  obj._turnout= self._turnout
   obj._charge = self._charge
   obj._turnin = self._turnin
   obj._setblt = self._setblt
@@ -642,7 +642,7 @@ anne_gf={
   local obj = anne_zk2:new(_i,_j)
   obj._chgmov = self._chgmov
   obj._fire = self._fire
-  obj.fi  = 3 -- fire interval
+  obj.fi  = 4 -- fire interval
   obj.typ = 6
   obj.col = 12 -- lblue
   obj.p   = 4 -- score
@@ -668,43 +668,40 @@ anne_gf={
   s.x+=s.vx
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
-  -- state change
---  if s.y>128 then -- loopback
---   s.l+=1
---   if s.l>=3 then -- 3 loops
---    s.f=-1 -- escaped
---   elseif enemies.anum>4 or 
---          enemies.en_charge==false then
---    s.f =  3 -- return
---    s.y =-16 -- rewind y to top
---    s.s = 15 -- 
---    s.c =  0 -- turn counter
---    s.dx=  0
---   else
---    -- rewind top and x adjust
---    s.y=-16
---    if s.x<0   then s.x=0 end
---    if s.x>120 then s.x=120 end
---   end
---  end
  end,
 
  _fire =function(s)
   -- fire control (random)
   if s.fc>0 or s.y>80 then
    return end
---  if(abs(player.x-s.x)>50)  return
---  if flr(rnd(s.fr)) == 5 and
---     s.y<80 then
   if abs(s.vx)<=0.6 then
    if s:_setblt()==true then
     s.fc=s.fi
    end
   end
  end,
-
 }
 
+anne_ge={
+ new = function(self,_i,_j)
+  local obj = anne_zk2:new(_i,_j)
+  obj._chgmov = self._chgmov
+  --obj._fire = self._fire
+  obj.fi  = 4 -- fire interval
+  obj.typ = 7
+  --obj.col = 12 -- lblue
+  obj.p   = 5 -- score
+  obj.ax  = 0.15
+  obj.ox  = nil -- target-x
+  return obj
+ end,
+
+ _chgmov =function(s)
+  if s.vx==0 then
+  end
+ end,
+
+}
 -------------------------------------
 
 anne_types={
@@ -714,6 +711,7 @@ anne_types={
   anne_zk2s,
   anne_zg,
   anne_gf,
+  anne_ge,
 }
 
 function build_anne(n,i,j)
@@ -1349,6 +1347,8 @@ backs={
    stars:draw()
    if stars.sfrm>120 then
     camera(flr(rnd(3))-2,0)
+   else -- delay charge
+    enemies.charge_cnt+=1
    end
   end
  }
@@ -1453,16 +1453,16 @@ stages={
  },  
  { str="stage 1",
   sub="encount",
-  convoy={types={6,2 },  -- type/line
-          forms={4,1 }}, -- form/line
+  convoy={types={3,2 },  -- type/line
+          forms={2,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   trn=1, -- noiz transition
   nxt=4
  },
  { str="stage 2",
-  convoy={types={3,2,2 },  -- type/line
-          forms={2,1,1 }}, -- form/line
+  convoy={types={6,3,2 },  -- type/line
+          forms={4,1,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   special =function(s)
@@ -1490,7 +1490,7 @@ stages={
   nxt=6
  },
  { str="stage 4",
-  convoy={types={3,2,2 },  -- type/line
+  convoy={types={6,3,3 },  -- type/line
           forms={2,1,1 }}, -- form/line
   charge=40, -- charge interval init
   back = backs.stars,
