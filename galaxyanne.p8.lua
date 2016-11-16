@@ -105,7 +105,7 @@ function _draw()
  bg:draw()
  scene:draw()
  hud:draw()
- debug_hud()
+ --debug_hud()
 end
 
 -----------------------------
@@ -159,13 +159,13 @@ scene = nil
 -----------------------------
 -- anness -------------------
 
-function turnleft(now)
+function an_rot_l(now)
  local r = now+1
  if r==19 then r=3 end
  return r
 end
 
-function turnright(now)
+function an_rot_r(now)
  local r = now-1
  if r==2 then r=18 end
  return r
@@ -287,16 +287,16 @@ anne_0 = { -- abstract
 
  _turnout =function(s)
   if s.c==0 then
-   sfx(1,3)
+--   sfx(1,3)
   end
   s.c += 1
   if s.c%2==0 then
    if s.i <= 3 then -- leftside
-    s.s = turnleft(s.s)
+    s.s = an_rot_l(s.s)
     s.x -= 4-flr(abs(12-s.c)/3)
     s.y -= flr((12-s.c)/2)
    else
-    s.s = turnright(s.s)
+    s.s = an_rot_r(s.s)
     s.x += 4-flr(abs(12-s.c)/3)
     s.y -= flr((12-s.c)/2)
    end
@@ -314,17 +314,6 @@ anne_0 = { -- abstract
  _charge =function(s)
   -- move
   s:_chgmov()
---  if s.y<100 then
---   if player.x+s.margn<s.x then
---    s.vx-=s.ax end
---   if s.x<player.x-s.margn then
---    s.vx+=s.ax end
---  end
---  if(s.vx<=-s.maxvx)s.vx=-s.maxvx
---  if(s.vx>= s.maxvx)s.vx=s.maxvx
---  s.x+=s.vx
---  s.y+=s.vy
---  an_rot_p(s) -- rotate to player
   -- state change
   if s.y>128 then -- loopback
    s.l+=1
@@ -375,10 +364,12 @@ anne_0 = { -- abstract
  end,
 
  _setblt =function(s)
-  return enemies:fire_to(
-       s.x, s.y,  -- src
-       s.x, s.y+10, -- dst
-       3)           -- spd/frame
+--  return enemies:fire_to(
+--       s.x, s.y,  -- src
+--       s.x, s.y+10, -- dst
+--       3)           -- spd/frame
+  return enemies:fire_for(
+         s.x,s.y, -0.0, 3)
  end,
 
  _turnin =function(s)
@@ -387,9 +378,9 @@ anne_0 = { -- abstract
   s.y+=2
   if s.y>rpos.y-14 then
    if s.i<=3 then -- left
-    s.s = turnleft(s.s)
+    s.s = an_rot_l(s.s)
    else           -- right
-    s.s = turnright(s.s)
+    s.s = an_rot_r(s.s)
    end
   end
   if s.y>=rpos.y then -- to formation
@@ -862,7 +853,7 @@ enemies={
  returned=function(s)
   s.charge_num-=1
   if s.charge_num==0 then
-   sfx(-1,3)
+--   sfx(-1,3)
   end
  end,
  ---
@@ -916,11 +907,11 @@ enemies={
   for b in all(s.bullets) do
    if b.a==false then
     b.t = t -- type(spr,colligion)
-    b.x, b.y = x, y
-    b.vx,b.vy= vx,vy
-    b.ax,b.ay= ax,ay
-    b.mx,b.my= mx,my
-    b.a=true
+    b.x, b.y = x, y  -- locates
+    b.vx,b.vy= vx,vy -- speeds
+    b.ax,b.ay= ax,ay -- accels
+    b.mx,b.my= mx,my -- max-speeds
+    b.a=true -- is active
     return true
    end
   end
@@ -941,6 +932,14 @@ enemies={
   -- type 2: throw up
   return s:bullet(2,x,y,vx,-2,
                   0,0.2,0,3)
+ end,
+ ---
+ fire_for=function(s,x,y,ang,spd)
+  -- type 3: fire angle(0:down 0.25:right)
+  local vx = spd*sin(ang)
+  local vy = spd*cos(ang)
+  return s:bullet(1,x,y,vx,vy,
+           0,0,0,0)
  end,
  ---
  append=function(s,anne)
@@ -1360,9 +1359,14 @@ backs={
   ---
   new =function(s)
    stars:switchto(3)
+   --s.bgm=0
    return s
   end,
   update =function(s)
+   --if s.bgm==0 then
+   -- music(0,{4}) 
+   -- s.bgm=1
+   --end
    stars:update()
   end,
   draw =function(s)
@@ -1503,8 +1507,14 @@ stages={
           forms={6,5,6 }}, -- form/line
   charge=50, -- charge interval init
   back = backs.storm,
+  entry =function(s)
+   music(0) -- warp in
+  end,
   clear =function(s)
-   stars.sfrv=-1
+   if stars.sfrv>=0 then
+    music(2) -- warp out
+    stars.sfrv=-1
+   end
    if stars.sfrm>0 then
     return false end
    return true
@@ -1513,7 +1523,7 @@ stages={
  },
  { str="stage 4",
   convoy={types={6,3,3 },  -- type/line
-          forms={2,1,1 }}, -- form/line
+  forms={2,1,1 }}, -- form/line
   charge=40, -- charge interval init
   back = backs.stars,
   clear =function(s)
@@ -1622,6 +1632,7 @@ scenes={
    player.en_shot    = true
    enemies.en_charge = true
    -- missile,bullet init
+   --music(0)
    return s
   end,
   ---
@@ -1700,6 +1711,9 @@ scenes={
      -- to nextstage
      stage =stages[stage.nxt]
      scene =scenes.stage:new()
+     if stage.entry then
+      stage:entry()
+     end
     end
    end  
   end,
@@ -1928,9 +1942,9 @@ __sfx__
 00030014091100c1100e1100f110111101111011110101100f1100e1100b110091100611004110021100111001110011100211004110071100b1100c1100b1100a11009110071100411002110041100711009110
 000c00002405325063240732607324073270732607328073260632806326053270532603328033270232802325013250132501326013260132600326003250032500323003230032300326003260032800329003
 000b00002153223532215321f5321f5221f51224201242012420124201242010c2050e203102030c2030e200102000c200102001120013200060000d000150001f0001f0001f0001f0001f00021000210000b000
-00070308316201b600256200461003610026100361001610316100160017610066000761001600016001160018600186000160021600000000000000000000000000000000000000000000000000000000000000
-01070000266732f652276730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000900000160001610036200261003610046000362004610076200562007620086200a6200c62010630106401863019640216601f65027670286702f67035660356703e6703e6703e6703f6503e6703767024670
+000400200d670346703c6703f6703e6603f6603f6603f6603f6603e6603a6503965037650336502f6502b64026640206401964018640126300d63007630026300a62001620066200162003610036100161002610
+001000060b630086300a630096300a630086300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000e000023070230702307023070230702307023070230702307023070230702307023070230702307023070230702307023070210701f070210701f0701d070210701f0701d070210701f0701d0702107023070
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1986,9 +2000,9 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
-00 41424344
-00 41424344
-00 41424344
+00 4a424307
+03 49424309
+04 48424308
 00 05064344
 00 41424344
 00 41424344
