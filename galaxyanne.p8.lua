@@ -409,7 +409,7 @@ anne_0 = { -- abstract
    enemies:returned()
    b *= 4
   end
-  score:add(b)
+  score:add(b*player.combo)
   s.c=0 -- animation counter
   s.f=4 -- begin die sequence
  end,
@@ -525,6 +525,10 @@ anne_zk2s = {
   d_dgs=s.dgs
   d_dgc=s.dgc
   s:_ochg() -- inherit
+  print(scene.name,64,64)
+  if scene.name=="miss" then
+   s.l=3
+  end
   local mx=player.mx
   local my=player.my
   if s.dgs != 0 then
@@ -559,7 +563,7 @@ anne_zg={
   obj.col = 12 -- lblue
   obj.p   =  5 -- score
   -- for fire
-  obj.fi  = 10 -- interval
+  obj.fi  =  7 -- interval
   obj._convoy = self._convoy
   obj._turnout= self._turnout
   obj._charge = self._charge
@@ -622,8 +626,6 @@ anne_zg={
 
  _turnin =function(s)
   -- skip to convoy
-  --assert(enemies.charge_num>0)
-  --enemies:returned(s) 
   s.f = 0 -- convoy
  end,
 }
@@ -680,9 +682,7 @@ anne_ge={
   local obj = anne_zk2:new(_i,_j)
   obj.typ = 7
   obj._chgmov = self._chgmov
-  --obj._fire = self._fire
   obj.fi  = 4 -- fire interval
-  --obj.col = 12 -- lblue
   obj.p   = 5 -- score
   obj.ax  = 0.15
   obj.tx  = nil -- target-x
@@ -713,7 +713,6 @@ anne_ge={
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
  end,
-
 }
 -------------------------------------
 
@@ -817,7 +816,6 @@ enemies={
       a.y = -10*a.y
       a.s = 7 -- (,-,)
       a.f = 3 -- turn-in
-      --s:charged()
      end
     else
      a.f=-1 -- inactive
@@ -856,7 +854,7 @@ enemies={
    s.charge_num-=1
    if s.charge_num==0 then
     if s.charge_snd then
-     sfx(1,1,20)
+     sfx(1,0,20)
      s.charge_snd=false
     end
    end
@@ -874,7 +872,7 @@ enemies={
   if s.charge_int >= 5 then
    s.charge_int -= 1
   end
-  if stage.speciial!=nil then
+  if stage.special!=nil then
    stage:special()
   end
  end,
@@ -883,7 +881,6 @@ enemies={
   for a in all(s.annes) do
    if a.f!=-1 then -- alive
     if colligion(x,y,c,
- --       a.x,a.y,t_spr[a.s].c) then
         a.x,a.y,t_sprite[a.s].c) then
      return a
     end
@@ -1097,13 +1094,13 @@ numsco={
 
 player={
  rest=0,
- kills=0,
  x=0,
  y=0,
  ---
  init =function(s)
   s.rest=4
   s.crush=0
+  s.combo=1
  end,
  ---
  update =function(s)
@@ -1150,6 +1147,7 @@ player={
    s.my -= 4
    if s.my <= 0 then
     score:add(-1)
+    s.combo = 1
     s.mx=-200 -- remove
    end
   end
@@ -1161,6 +1159,7 @@ player={
     s.mx=-100
     a:hit()
     s.kills += 1
+    s.combo += 1
    end
   end
  end,
@@ -1170,10 +1169,8 @@ player={
   pal(8,8)
   if s.crush == 0 then
    if s.mx<0 then
-   -- spr(96,s.x+7,s.y+2)
     putat(31,s.x,s.y-4,0)
    end
-   --spr(14,s.x,s.y,2,2)
    putat(25,s.x,s.y,0)
   else
    s.crush +=1 -- crush animation timer
@@ -1193,7 +1190,6 @@ player={
   -- missile
   if s.mx>=0 then
    putat(31,s.mx,s.my,0)
-   --spr(96,s.mx,s.my)
   end
  end,
  ---
@@ -1359,14 +1355,9 @@ backs={
   ---
   new =function(s)
    stars:switchto(3)
-   --s.bgm=0
    return s
   end,
   update =function(s)
-   --if s.bgm==0 then
-   -- music(0,{4}) 
-   -- s.bgm=1
-   --end
    stars:update()
   end,
   draw =function(s)
@@ -1440,6 +1431,9 @@ hud={
     spr(29,i*4-4,120)
    end
   end 
+  if player.combo>1 then
+   print("x"..player.combo,64,0)
+  end
   -- console string
   for t in all(s.types) do
    if t!=nil then
@@ -1495,7 +1489,7 @@ stages={
   charge=60, -- charge interval init
   back = backs.stars,
   special =function(s)
-   if enemies.anum==1 and
+   if enemies.anum==0 and
       s.scnt==0 and
      player.kills>=15 then
      append_zk2s()
@@ -1549,6 +1543,7 @@ scenes={
   new =function(s)
    stars:init()
    bg = backs.stars:new()
+   player:init()
    enemies:init()
    stage=stages[1]
    s.timer = 0
@@ -1646,9 +1641,6 @@ scenes={
    elseif enemies:is_clear() then
     scene=scenes.clear:new()
    end
-   if stage.special!=nil then
-    stage:special()
-   end
   end,
   ---
   draw =function(s)
@@ -1739,6 +1731,7 @@ scenes={
    end,
    ---
    update =function(s)
+    music(0)
     enemies:update()
     if btn(5) then
      scene = scenes.title:new()
