@@ -1,8 +1,8 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
---galaxyanne 0.6
---by wernyv
+--galaxyanne 0.7
+--by Wernyv
 
 -----------------------------
 -- tables -------------------
@@ -38,23 +38,23 @@ t_sprite={ -- id,hflip,vflip,colligionrect
  { 2, -7,-4, 0,0,c={-3,-3,4,4}},-- 1 || stay 1
  { 1, -7,-4, 0,0,c={-3,-3,4,4}},-- 2 () stay 2
  -- rotation 360/22.5
- { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 3 <-  fly
+ { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 3 (:  fly
  { 5, -10,-6,0,0,c={-3,-3,4,4}},-- 4
  { 4, -9,-5, 0,0,c={-3,-3,4,4}},-- 5 /
  { 3, -7,-4, 0,0,c={-3,-3,4,4}},-- 6
- { 2, -7,-4, 0,0,c={-3,-3,4,4}},-- 7 v v
+ { 2, -7,-4, 0,0,c={-3,-3,4,4}},-- 7 '-'
  { 3, -7,-4, 1,0,c={-3,-3,4,4}},-- 8
  { 4, -5,-5, 1,0,c={-3,-3,4,4}},-- 9 \
  { 5, -4,-6, 1,0,c={-3,-3,4,4}},-- 10
- { 6, -4,-7, 1,0,c={-3,-3,4,4}},-- 11 ->
+ { 6, -4,-7, 1,0,c={-3,-3,4,4}},-- 11 :)
  { 5, -4,-8, 1,1,c={-3,-3,4,4}},-- 12
  { 4, -5,-9, 1,1,c={-3,-3,4,4}},-- 13 /
  { 3, -7,-10,1,1,c={-3,-3,4,4}},-- 14
- { 2, -7,-10,1,1,c={-3,-3,4,4}},-- 15 ^
+ { 2, -7,-10,1,1,c={-3,-3,4,4}},-- 15 ,-,
  { 3, -7,-10,0,1,c={-3,-3,4,4}},-- 16
  { 4, -9,-9, 0,1,c={-3,-3,4,4}},-- 17 \
  { 5, -10,-8,0,1,c={-3,-3,4,4}},-- 18
- { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 19 <-  fly
+ { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 19 (:  fly
  -- deads
  { 9, -7,-7, 0,0},-- 20 dead 1
  {10, -7,-7, 0,0},-- 21 dead 2
@@ -105,7 +105,7 @@ function _draw()
  bg:draw()
  scene:draw()
  hud:draw()
- --debug_hud()
+ debug_hud()
 end
 
 -----------------------------
@@ -125,15 +125,15 @@ function debug_hud()
  end
  dprint_y=10
  color(11)
- dprint("enum:"..enemies.anum)
- dprint("chgn:"..enemies.charge_num)
- dprint("chgc:"..enemies.charge_cnt)
+ rect(0,0,enemies.chg_cnt,2)
+ line(enemies.chg_int,0,enemies.chg_int,4)
+ dprint(" enum:"..enemies.anum)
+ dprint(" chgn:"..enemies.chg_num)
  dprint("scene:"..scene.name)
- dprint("kills:"..player.kills)
- dprint("sfrm:"..stars.sfrm)
+ dprint(" sfrm:"..stars.sfrm)
  if d_dgs!=nil then
-  dprint("dgs:"..d_dgs)
-  dprint("dgc:"..d_dgc)
+  dprint(" dgs:"..d_dgs)
+  dprint(" dgc:"..d_dgc)
  end
  for b in all(enemies.bullets) do
   if b.a==true then
@@ -171,22 +171,51 @@ function an_rot_r(now)
  return r
 end
 
+function get_ang(from,to)
+ local dx = to.x-from.x
+ local dy = to.y-from.y
+ return atan2(dx,dy)
+end
+
+function near(v,t,m)
+ return (t+abs(m)>=v and v>=t-abs(m))
+end
+
+function limit(v,mn,mx)
+ if v>mx then
+  v=mx end
+ if v<mn then
+  v=mn
+ end
+ return v
+end
+
+function in_range(v,mn,mx)
+ return (mn<=v and v<=mx)
+end
+
+function in_field(o)
+ return in_range(o.x,0,127) and
+        in_range(o.y,0,127)
+end
+
+function an_rot_to(s,ang)
+ local ts=3+flr((ang+(1/32))/(1/16))
+ if s.s != ts then
+  s.s += sgn(ts-s.s)
+  return true
+ else
+  return false
+ end
+end
+
 function an_rot_p(s)
  -- rotate to galaxip
  if(player.y > s.y)s.c+=1
  if s.c >= 5 then
   s.c=0
-  local t = 0
-  local r = (player.x-s.x)/(player.y-s.y)
-  if r<-2 then t=11
-  elseif r<-0.5 then t=13
-  elseif r<0.5  then t=15
-  elseif r<2    then t=17
-  else               t=19
-  end
-  if    (s.s>t) then s.s-=1
-  elseif(s.s<t) then s.s+=1
-  end
+  local a = get_ang(s,player)
+  an_rot_to(s,limit(a,0.55,0.95))
  end
 end
 
@@ -212,6 +241,7 @@ anne_0 = { -- abstract
    update=self.update,
    draw  =self.draw,
    hit   =self.hit,
+   ischg =self.ischg,
    _convoy =self._convoy,
    _turnout=self._turnout, 
    _charge =self._charge,
@@ -249,7 +279,7 @@ anne_0 = { -- abstract
   elseif s.f==3 then -- return to convoy
    s:_turnin()
    if s.f!=3 then
-    --assert(enemies.charge_num>0)
+    --assert(enemies.chg_num>0)
     enemies:returned()
    end 
   elseif s.f==4 then -- dead
@@ -275,7 +305,7 @@ anne_0 = { -- abstract
   if enemies.en_charge==true then
    local go = false
    if enemies:exist(s.i,s.j-1)==false 
-    and enemies.charge_cnt==0 
+    and enemies.chg_cnt==0 
     and flr(rnd(5))==3 -- 1/5
     then
     s.f=1 -- turn-out
@@ -311,9 +341,11 @@ anne_0 = { -- abstract
   end
  end,
 
- _charge =function(s)
+ _charge =function(s,nm)
   -- move
-  s:_chgmov()
+  if not nm then
+   s:_chgmov()
+  end
   -- state change
   if s.y>128 then -- loopback
    s.l+=1
@@ -342,10 +374,7 @@ anne_0 = { -- abstract
    if s.x<player.x-s.margn then
     s.vx+=s.ax end
   end
-  if s.vx<=-s.maxvx then
-   s.vx=-s.maxvx end
-  if s.vx>= s.maxvx then
-   s.vx=s.maxvx end
+  s.vx = limabs(s.vx,s.maxvx)
   s.x+=s.vx
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
@@ -364,10 +393,6 @@ anne_0 = { -- abstract
  end,
 
  _setblt =function(s)
---  return enemies:fire_to(
---       s.x, s.y,  -- src
---       s.x, s.y+10, -- dst
---       3)           -- spd/frame
   return enemies:fire_for(
          s.x,s.y, -0.0, 3)
  end,
@@ -402,16 +427,19 @@ anne_0 = { -- abstract
  hit =function(s)
   sfx(2,1) -- hit
   local b=s.p
-  if s.f==1 or   -- turn out 
-     s.f==2 or   -- charge
-     s.f==3 then -- turn in
-   assert(enemies.charge_num>0)
+  if s:ischg() then -- turn in
+   enemies:rew_chg() -- rewind
    enemies:returned()
    b *= 4
   end
   score:add(b*player.combo)
   s.c=0 -- animation counter
   s.f=4 -- begin die sequence
+ end,
+
+ ischg =function(s)
+  -- turn_out or charge or turn_in
+  return 1<=s.f and s.f<=3
  end,
 }
 
@@ -451,20 +479,59 @@ anne_sim = {
 -------------------------------------
 function limabs(_v,_w)
  -- limit v to +w..-w
- if _v<-_w then
-  return -_w end
- if _v>_w  then
-  return _w  end
- return _v
+ return limit(_v,-_w,_w)
 end
 
 anne_zk1 = {
  new = function(self,_i,_j)
-  local obj = anne_0:new(_i,_j)
+  local obj = anne_zk2:new(_i,_j)
   obj.typ = 2
   -- type parameters
   obj.col = 3  -- dgreen
   obj.p   = 2  -- score
+  -- for fire
+  obj.fr  = 25 -- fire rate
+  obj._setblt=anne_0._setblt
+  obj._ochg=obj._charge
+  obj._charge=self._charge
+  return obj
+ end,
+ _charge =function(s)
+  if s.y<80 then
+   s.tc = false
+  end
+  oy =s.y
+  s:_ochg(s.tc)
+  if s.tc==false then
+   local dd=abs(player.x-s.x)/
+            abs(player.y-s.y)
+   if in_field(s) and
+      s.y>=80 and near(dd,1,0.2) then
+    s.tx = abs(s.maxvx)
+          *sgn(player.x-s.x)
+    s.ta = 0.75+0.125*sgn(s.tx)
+    s.tc=0
+   end
+  else
+   if s.tc <= 10 then
+    s.tc += 1
+    if s.tc%3==0 then
+     an_rot_to(s,s.ta)
+    end
+   else
+    s.x += s.tx
+    s.y += s.vy*1.5
+   end
+  end
+ end
+}
+
+anne_zk2 = {
+ new = function(self,_i,_j)
+  local obj = anne_0:new(_i,_j)
+  obj.typ = 3
+  obj.col = 11 -- lgreen
+  obj.p   = 3  -- score
   -- for mv_sin
   obj.ax    = 0.1 -- vx step
   obj.maxvx = 3   -- max vx
@@ -472,20 +539,8 @@ anne_zk1 = {
   obj.vy    = 1.5 -- charge vy
   obj.dx    = 0
   -- for fire
-  obj.fi    = 10 -- interval
-  obj.fr    = 15 -- fire rate
-  return obj
- end,
-}
-
-anne_zk2 = {
- new = function(self,_i,_j)
-  local obj = anne_zk1:new(_i,_j)
-  obj.typ = 3
-  obj.col = 11 -- lgreen
-  obj.p   = 3  -- score
-  -- for fire
   obj.fi  = 10 -- interval
+  obj.fr  = 15 -- fire rate
   obj._setblt=self._setblt
   return obj
  end,
@@ -541,8 +596,7 @@ anne_zk2s = {
    end
   elseif s.dgc>0 and
    ((s.vx>0 and abs(s.x+16-mx)<=8)
-   or 
-   (s.vx<0 and abs(s.x-mx)<=8))
+    or (s.vx<0 and abs(s.x-mx)<=8))
    then
    s.dgs = 2*sgn(s.vx) --s.vx*2/abs(s.vx)
   end
@@ -656,10 +710,7 @@ anne_gf={
   if s.y<100 then
    s.vx += s.ax
   end
-  if s.vx<=-s.maxvx then
-   s.vx=-s.maxvx end
-  if s.vx>= s.maxvx then
-   s.vx=s.maxvx end
+  s.vx = limabs(s.vx,s.maxvx)
   s.x+=s.vx
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
@@ -705,10 +756,7 @@ anne_ge={
   s.vx += s.ax
   if abs(s.vx)<abs(s.ax) then
    s.vx=0 end
-  if s.vx<=-s.maxvx then
-   s.vx=-s.maxvx end
-  if s.vx>= s.maxvx then
-   s.vx=s.maxvx end
+  s.vx = limabs(s.vx,s.maxvx)
   s.x+=s.vx
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
@@ -759,8 +807,8 @@ enemies={
        {1,0,1,0,1,0}}, -- 6
  anum=0,          -- anne lives
  en_charge=false, -- enable charge
- charge_cnt=0,
- charge_num=0,
+ chg_cnt=0,
+ chg_num=0,
  ---
  init=function(s)
   -- init rest positions
@@ -795,9 +843,9 @@ enemies={
   s.annes={}
   s.anum=0
   s.escnum=0 -- escaped num
-  s.charge_int=stage.charge
-  s.charge_cnt=stage.charge
-  s.charge_num=0
+  s.chg_int=stage.charge
+  s.chg_cnt=stage.charge
+  s.chg_num=0
   local sq = 1 -- sequencial
   local cv = stage.convoy.types
   local fm = stage.convoy.forms
@@ -837,8 +885,8 @@ enemies={
  end,
  ---
  charged =function(s)
-  s.charge_num+=1
-  s.charge_cnt=s.charge_int
+  s.chg_num+=1
+  s.chg_cnt=s.chg_int
   sfx(1,0)
   s.charge_snd=true
  end,
@@ -850,9 +898,9 @@ enemies={
  end,
  ---
  returned=function(s)
-  if s.charge_num > 0 then
-   s.charge_num-=1
-   if s.charge_num==0 then
+  if s.chg_num > 0 then
+   s.chg_num-=1
+   if s.chg_num==0 then
     if s.charge_snd then
      sfx(1,0,20)
      s.charge_snd=false
@@ -866,15 +914,18 @@ enemies={
  end,
  ---
  dead=function(s,a)
+  if s.chg_int >= 5 then
+   s.chg_int -= 1
+  end
   a.f=-1 -- dead
   s.anum -=1
-  s.charge_cnt=s.charge_int
-  if s.charge_int >= 5 then
-   s.charge_int -= 1
-  end
   if stage.special!=nil then
    stage:special()
   end
+ end,
+ ---
+ rew_chg=function(s)
+  s.chg_cnt = s.chg_int
  end,
  ---
  hitrect=function(s,x,y,c)
@@ -975,8 +1026,7 @@ enemies={
     b.y+=b.vy
     b.vx += b.ax
     b.vy += b.ay
-    if b.y<0 or b.y>128 
-    or b.x<0 or b.x>128 then
+    if not in_field(b) then
      b.a=false -- deactive
     end
    end
@@ -988,8 +1038,8 @@ enemies={
   elseif s.x>=10 then
    s.vx = -abs(s.vx)
   end
-  if s.charge_cnt>0 then
-   s.charge_cnt-=1
+  if s.chg_cnt>0 then
+   s.chg_cnt-=1
   end
  end,
  ---
@@ -997,7 +1047,6 @@ enemies={
   -- bullets
   for b in all(s.bullets) do
    if b.a==true then -- active
-    --spr(t_blt[b.t].s, b.x,b.y)
     putat(28+b.t, b.x,b.y,0)
    end
   end
@@ -1023,7 +1072,7 @@ enemies={
    end
   end
   return (s.anum==0 or
-         s.charge_num==0) and
+         s.chg_num==0) and
          active==false
  end
 }
@@ -1365,7 +1414,7 @@ backs={
    if stars.sfrm>120 then
     camera(flr(rnd(3))-2,0)
    else -- delay charge
-    enemies.charge_cnt+=1
+    enemies.chg_cnt+=1
    end
   end
  }
@@ -1463,24 +1512,24 @@ stages={
  },
  { str="stage 0",
   sub="simulation",
-  convoy={types={1,1,1 },  -- type/line
-          forms={4,1,1 }, -- form/line
+  convoy={types={1,1 },  -- type/line
+          forms={4,1 }, -- form/line
           noc=1}, -- cancel fly-in
-  charge=50, -- charge interval init
+  charge=90, -- charge interval init
   back=backs.training,
   trn=1, -- noiz transition
   nxt=3
  },  
  { str="stage 1",
   sub="encount",
-  convoy={types={7,2 },  -- type/line
-          forms={2,1 }}, -- form/line
+  convoy={types={3,3,2,2 },  -- type/line
+          forms={2,1,1,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   trn=1, -- noiz transition
   nxt=4,
   entry =function(s)
-   music(3,2000) -- warp in
+   --music(3,2000) -- warp in
   end,
  },
  { str="stage 2",
