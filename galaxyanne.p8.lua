@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
 --galaxyanne 0.7
---by Wernyv
+--by wernyv
 
 -----------------------------
 -- tables -------------------
@@ -157,6 +157,42 @@ stage = nil
 scene = nil
 
 -----------------------------
+-- functions ----------------
+
+function limit(v,mn,mx)
+ if v>mx then
+  v=mx end
+ if v<mn then
+  v=mn
+ end
+ return v
+end
+
+function limabs(_v,_w)
+ -- limit v to +w..-w
+ return limit(_v,-_w,_w)
+end
+
+function near(v,t,m)
+ return (t+abs(m)>=v and v>=t-abs(m))
+end
+
+function in_range(v,mn,mx)
+ return (mn<=v and v<=mx)
+end
+
+function get_ang(from,to)
+ local dx = to.x-from.x
+ local dy = to.y-from.y
+ return atan2(dx,dy)
+end
+
+function in_field(o)
+ return in_range(o.x,0,127) and
+        in_range(o.y,0,127)
+end
+
+-----------------------------
 -- anness -------------------
 
 function an_rot_l(now)
@@ -169,34 +205,6 @@ function an_rot_r(now)
  local r = now-1
  if r==2 then r=18 end
  return r
-end
-
-function get_ang(from,to)
- local dx = to.x-from.x
- local dy = to.y-from.y
- return atan2(dx,dy)
-end
-
-function near(v,t,m)
- return (t+abs(m)>=v and v>=t-abs(m))
-end
-
-function limit(v,mn,mx)
- if v>mx then
-  v=mx end
- if v<mn then
-  v=mn
- end
- return v
-end
-
-function in_range(v,mn,mx)
- return (mn<=v and v<=mx)
-end
-
-function in_field(o)
- return in_range(o.x,0,127) and
-        in_range(o.y,0,127)
 end
 
 function an_rot_to(s,ang)
@@ -279,7 +287,6 @@ anne_0 = { -- abstract
   elseif s.f==3 then -- return to convoy
    s:_turnin()
    if s.f!=3 then
-    --assert(enemies.chg_num>0)
     enemies:returned()
    end 
   elseif s.f==4 then -- dead
@@ -361,8 +368,9 @@ anne_0 = { -- abstract
    else
     -- rewind top and x adjust
     s.y=-16
-    if s.x<0   then s.x=0 end
-    if s.x>120 then s.x=120 end
+    s.x = limit(s.x,0,120)
+ --   if s.x<0   then s.x=0 end
+ --   if s.x>120 then s.x=120 end
    end
   end
  end,
@@ -477,11 +485,6 @@ anne_sim = {
  end
 }
 -------------------------------------
-function limabs(_v,_w)
- -- limit v to +w..-w
- return limit(_v,-_w,_w)
-end
-
 anne_zk1 = {
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
@@ -853,8 +856,6 @@ enemies={
    for i=1,6 do
     local a =
        build_anne(cv[j],i,j)
-    assert(cv[j]!=0)
-    assert(a!=nil)
     if s.form[fm[j]][i]==1 then
      s.anum += 1
      a.s = 1 -- ('-')
@@ -1285,7 +1286,6 @@ stars={ -- bg particles
   end
   s.posy = 0 -- grid pos-x
   s.mode = 1 -- stars
-  assert(s.mode!=nil)
   s.sfrm = 0 -- for storm
   s.sfrv = 0 -- for storm
  end,
@@ -1611,8 +1611,11 @@ scenes={
   end,
   ---
   draw =function(s)
-   map(1,0,23,50,10,1)
-   print("   (rev.0.6)", 20,60)
+   map(1,0,23,40,10,1)
+   print("   (rev.0.6)", 20,50)
+   putat(31,64,70-4,0)
+   putat(25,64,70,0)
+   print("hit button to start",20,90)
   end,
  },
  
