@@ -12,78 +12,58 @@ t_dnce={ -- dance frames
        {x=1, y=-1,s=1},-- 2
        {x=0, y=0, s=2},-- 3
        {x=-1,y=-1,s=1}}-- 4
-t_sprid={ -- sprite id
-   0, -- 1 ('-')
-   6, -- 2 |'-'|
-  32, -- 3 /'-'/ 22'
-  38, -- 4 /'-'/ 45'
-  64, -- 5 /'-'/ 67'
-  70, -- 6 ( =   90'
-  96, -- 7  ' '  hidden
-  44, -- 8 (-) ball
- 128, -- 9 dead1
- 130, --10 dead2
- 132, --11 dead3
-  14, --12 ship
- 160, --13 miss1
- 162, --14 miss2
- 163, --15 miss3
-  12, --16 bullet1 |
-  28, --17 bullet2 *
-  13, --18 missile |
-}
 t_sprite={ -- id,hflip,vflip,colligionrect
 -- no l<->r u<->d
  -- in convoy
- { 2, -7,-4, 0,0,c={-3,-3,4,4}},-- 1 || stay 1
- { 1, -7,-4, 0,0,c={-3,-3,4,4}},-- 2 () stay 2
+ {  6, 7, 4, 0,c={-3,-3,4,4}},-- ('-') stay 1
+ {  0, 7, 4, 0,c={-3,-3,4,4}},-- |'-'| stay 2
  -- rotation 360/22.5
- { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 3 (:  fly
- { 5, -10,-6,0,0,c={-3,-3,4,4}},-- 4
- { 4, -9,-5, 0,0,c={-3,-3,4,4}},-- 5 /
- { 3, -7,-4, 0,0,c={-3,-3,4,4}},-- 6
- { 2, -7,-4, 0,0,c={-3,-3,4,4}},-- 7 '-'
- { 3, -7,-4, 1,0,c={-3,-3,4,4}},-- 8
- { 4, -5,-5, 1,0,c={-3,-3,4,4}},-- 9 \
- { 5, -4,-6, 1,0,c={-3,-3,4,4}},-- 10
- { 6, -4,-7, 1,0,c={-3,-3,4,4}},-- 11 :)
- { 5, -4,-8, 1,1,c={-3,-3,4,4}},-- 12
- { 4, -5,-9, 1,1,c={-3,-3,4,4}},-- 13 /
- { 3, -7,-10,1,1,c={-3,-3,4,4}},-- 14
- { 2, -7,-10,1,1,c={-3,-3,4,4}},-- 15 ,-,
- { 3, -7,-10,0,1,c={-3,-3,4,4}},-- 16
- { 4, -9,-9, 0,1,c={-3,-3,4,4}},-- 17 \
- { 5, -10,-8,0,1,c={-3,-3,4,4}},-- 18
- { 6, -10,-7,0,0,c={-3,-3,4,4}},-- 19 (:  fly
+ { 70,10, 7, 0,c={-3,-3,4,4}},-- 3( =   90' fly
+ { 64,10, 6, 0,c={-3,-3,4,4}},-- 4/'-'/ 67'
+ { 38, 9, 5, 0,c={-3,-3,4,4}},-- 5/'-'/ 45'
+ { 32, 7, 4, 0,c={-3,-3,4,4}},-- 6/'-'/ 22'
+ {  6, 7, 4, 0,c={-3,-3,4,4}},-- 7|'-'|
+ { 32, 7, 4, 2,c={-3,-3,4,4}},-- 8\'-'\ -22'
+ { 38, 5, 5, 2,c={-3,-3,4,4}},-- 9\'-'\ -45'
+ { 64, 4, 6, 2,c={-3,-3,4,4}},--10\'-'\ -67'
+ { 70, 4, 7, 2,c={-3,-3,4,4}},--11 = )
+ { 64, 4, 8, 3,c={-3,-3,4,4}},--12/,-,/ 
+ { 38, 5, 9, 3,c={-3,-3,4,4}},--13/,-,/ -135'
+ { 32, 7,10, 3,c={-3,-3,4,4}},--14/,-,/
+ {  6, 7,10, 3,c={-3,-3,4,4}},--15|,-,| 180'
+ { 32, 7,10, 1,c={-3,-3,4,4}},--16\,-,\ 
+ { 38, 9, 9, 1,c={-3,-3,4,4}},--17\,-,\ 135' 
+ { 64,10, 8, 1,c={-3,-3,4,4}},--18\,-,\ 
+ { 70,10, 7, 0,c={-3,-3,4,4}},--19 ( =  90' fly
  -- deads
- { 9, -7,-7, 0,0},-- 20 dead 1
- {10, -7,-7, 0,0},-- 21 dead 2
- {11, -7,-7, 0,0},-- 22 dead 3
+ {128, 7, 7, 0},-- 20 dead 1
+ {130, 7, 7, 0},-- 21 dead 2
+ {132, 7, 7, 0},-- 22 dead 3
  -- special
- { 7, -7,-7, 0,0},-- 23 hyde
- { 8, -7,-7, 0,0},-- 24 ball
+ { 96, 7, 7, 0},-- 23 hyde
+ { 44, 7, 7, 0},-- 24 ball
  -- ship
- {12,-7,-10, 0,0, c={-3,-3,3,4}},-- 25 ship
- {13,-7,-10, 0,0},-- 26 miss1
- {14,-7,-10, 0,0},-- 27 miss2
- {15,-7,-10, 0,0},-- 28 miss3
+ { 14, 7,10, 0,c={-3,-3,3,4}},-- 25 ship
+ {160, 7,10, 0},-- 26 miss1
+ {162, 7,10, 0},-- 27 miss2
+ {163, 7,10, 0},-- 28 miss3
  -- bullets (8x8)
- {16,0,-4,   0,0, c={-1,-4,1,1}},-- 29 bullet |
- {17,-1,-2,  0,0, c={-1,-1,1,1}},-- 30 bullet *
- {18,0,-3,   0,0, c={-1,-3,1,0}} -- 32 misisle
+ { 12, 0, 4, 0,c={-1,-4,1,1}},-- 29 bullet |
+ { 28, 1, 2, 0,c={-1,-1,1,1}},-- 30 bullet *
+ { 13, 0, 3, 0,c={-1,-3,1,0}} -- 32 misisle
 }
 
 function putat(id,x,y,blink)
  local st = t_sprite[id]
- local sp = t_sprid[st[1]]
+ local sp = st[1]
  local sz = 2 -- 16x16
  if blink>0 and fget(sp,2) then
-  sp += (blink)*2
+  sp += blink*2
  end
  if fget(sp,0) then
   sz = 1
  end
- spr(sp,x+st[2],y+st[3],sz,sz,st[4]==1,st[5]==1)
+ spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
 end
 -----------------------------
 -- application entries ------
@@ -155,6 +135,9 @@ end
 
 stage = nil
 scene = nil
+
+-- consts -------------------
+oo={x=63.5,y=63.5}
 
 -----------------------------
 -- functions ----------------
@@ -392,7 +375,8 @@ anne_0 = { -- abstract
   -- fire control (random)
   if(s.fc>0)          return
   if(abs(player.x-s.x)>50)  return
-  if flr(rnd(s.fr)) == 5 and
+  -- if flr(rnd(s.fr)) == 5 and
+  if rnd(100)<=s.fr and
      s.y<80 then
    if s:_setblt()==true then
     s.fc=s.fi
@@ -493,7 +477,7 @@ anne_zk1 = {
   obj.col = 3  -- dgreen
   obj.p   = 2  -- score
   -- for fire
-  obj.fr  = 25 -- fire rate
+  obj.fr  = 4 -- fire rate
   obj._setblt=anne_0._setblt
   obj._ochg=obj._charge
   obj._charge=self._charge
@@ -543,7 +527,7 @@ anne_zk2 = {
   obj.dx    = 0
   -- for fire
   obj.fi  = 10 -- interval
-  obj.fr  = 15 -- fire rate
+  obj.fr  = 6 -- fire rate
   obj._setblt=self._setblt
   return obj
  end,
@@ -620,7 +604,8 @@ anne_zg={
   obj.col = 12 -- lblue
   obj.p   =  5 -- score
   -- for fire
-  obj.fi  =  7 -- interval
+  obj.fi  =  5 -- interval
+  obj.fr  =  10
   obj._convoy = self._convoy
   obj._turnout= self._turnout
   obj._charge = self._charge
@@ -816,7 +801,7 @@ enemies={
  init=function(s)
   -- init rest positions
   s.rests = {}
-  for j=1,4 do
+  for j=1,5 do
    rr={}
    for i=1,6 do
     rr[i] = { x=11+7+(i-1)*18,
@@ -1298,13 +1283,16 @@ stars={ -- bg particles
   s.mode = m
   for p in all(s.pts) do
    p.m = m
+   if m==4 then -- spin
+    p.a = get_ang(oo,p)
+    p.l = sqrt((p.x-oo.x)^2+(p.y-oo.y)^2)
+   end
   end
   if m==3 then
    s.sfrm = 0
    s.sfrv = 1
   end
  end,
-
  update =function(s)
   -- grid position
   s.posy +=1
@@ -1342,6 +1330,18 @@ stars={ -- bg particles
       p.x=127
      end
     end 
+   elseif p.m==4 then
+    p.a += 0.005
+    p.x = oo.x+sin(p.a)*p.l
+    p.y = oo.y+cos(p.a)*p.l
+    if not in_field(p) then
+     --(0.25-a%0.25)*2
+     --p.a += abs(p.a%0.25)
+     p.a += 0.5-(p.a*2%0.5)
+    end
+    if p.a>1 then
+     p.a -= 1
+    end
    end
   end
  end,
@@ -1352,7 +1352,7 @@ stars={ -- bg particles
    cls(1)
   end
   for i,p in pairs(s.pts) do
-   if p.m==1 then
+   if p.m==1 or p.m==4 then
     color(6)
     if p.f<10 then
      pset(p.x,flr(p.y)) end
@@ -1416,6 +1416,20 @@ backs={
    else -- delay charge
     enemies.chg_cnt+=1
    end
+  end
+ },
+ spin={
+  name="spin",
+  ---
+  new =function(s)
+   stars:switchto(4)
+   return s
+  end,
+  update =function(s)
+   stars:update()
+  end,
+  draw =function(s)
+   stars:draw()
   end
  }
 }
@@ -1510,20 +1524,18 @@ end
 stages={
  { -- [1]title screen
  },
- { str="stage 0",
-  sub="simulation",
+ { str="stage 0", sub="pre-training",
   convoy={types={1,1 },  -- type/line
           forms={4,1 }, -- form/line
           noc=1}, -- cancel fly-in
   charge=90, -- charge interval init
   back=backs.training,
   trn=1, -- noiz transition
-  nxt=3
+  nxt=7 --3
  },  
- { str="stage 1",
-  sub="encount",
-  convoy={types={3,3,2,2 },  -- type/line
-          forms={2,1,1,1 }}, -- form/line
+ { str="stage 1", sub="encount",
+  convoy={types={3,3,3 },  -- type/line
+          forms={2,1,1 }}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   trn=1, -- noiz transition
@@ -1532,11 +1544,12 @@ stages={
    --music(3,2000) -- warp in
   end,
  },
- { str="stage 2",
-  convoy={types={6,3,2 },  -- type/line
-          forms={4,1,1 }}, -- form/line
+ { str="stage 2", sub="evaluate",
+  convoy={types={6,3,3 },
+          forms={4,1,1 }},
   charge=60, -- charge interval init
-  back = backs.stars,
+  back = backs.spin,
+  --back = backs.stars,
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
@@ -1547,11 +1560,10 @@ stages={
   end,
   nxt=5
  },
- { str="stage 3",
-  sub="jump",
+ { str="stage 3", sub="feed-forward",
   convoy={types={5,5,5 },  -- type/line
           forms={6,5,6 }}, -- form/line
-  charge=50, -- charge interval init
+  charge=40, -- charge interval init
   back = backs.storm,
   entry =function(s)
    music(0) -- warp in
@@ -1568,9 +1580,16 @@ stages={
   nxt=6
  },
  { str="stage 4",
-  convoy={types={6,3,3 },  -- type/line
-  forms={2,1,1 }}, -- form/line
-  charge=40, -- charge interval init
+  convoy={types={6,3,2 },  -- type/line
+          forms={2,1,1 }}, -- form/line
+  charge=50, -- charge interval init
+  back = backs.stars,
+  nxt=7
+ },
+ { str="stage 6", sub="spars",
+  convoy={types={6,6,2,2,2 },  -- type/line
+          forms={6,5,6,5,6 }}, -- form/line
+  charge=50, -- charge interval init
   back = backs.stars,
   clear =function(s)
    stars.sfrv=-1
@@ -1578,7 +1597,11 @@ stages={
     return false end
    return true
   end
- }
+ },
+ -- stock
+ -- accuracy
+ -- dropout
+ -- hypothesis
 }
 
 -----------------------------
@@ -1783,7 +1806,7 @@ scenes={
    end,
    ---
    update =function(s)
-    music(0)
+    music(-1)
     enemies:update()
     if btn(5) then
      scene = scenes.title:new()
@@ -1990,7 +2013,7 @@ __sfx__
 000c00002405325063240732607324073270732607328073260632806326053270532603328033270232802325013250132501326013260132600326003250032500323003230032300326003260032800329003
 000b00002153223532215321f5321f5221f51224201242012420124201242010c2050e203102030c2030e200102000c200102001120013200060000d000150001f0001f0001f0001f0001f00021000210000b000
 000900000160001610036200261003610046000362004610076200562007620086200a6200c62010630106401863019640216601f65027670286702f67035660356703e6703e6703e6703f6503e6703767024670
-000400200d670346703c6703f6703e6603f6603f6603f6603f6603e6603a6503965037650336502f6502b64026640206401964018640126300d63007630026300a62001620066200162003610036100161002610
+000500200d670346703c6703f6703e6603f6603f6603f6603f6603e6603a6503965037650336502f6502b64026640206401964018640126300d63007630026300a62001620066200162003610036100161002610
 001000060b630086300a630096300a630086300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000e000023070230702307023070230702307023070230702307023070230702307023070230702307023070230702307023070210701f070210701f0701d070210701f0701d070210701f0701d0702107023070
 001400001072200703246131f00010722000001861300000107220000024613000001072200000186130000010722000002461300000107220000018613000001072200000246130000010722000031272218613
