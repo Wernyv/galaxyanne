@@ -175,6 +175,16 @@ function in_field(o)
         in_range(o.y,0,127)
 end
 
+function instance(class, obj)
+ -- copy all key-value w/o 'new'
+ for key,val in pairs(class) do
+  if key!="new" then
+   obj[key]=val
+  end
+ end
+ return obj
+end
+
 -----------------------------
 -- anness -------------------
 
@@ -211,39 +221,27 @@ function an_rot_p(s)
 end
 
 anne_0 = { -- abstract
+ x=0, y=0,
+ vx=0,vy=0, -- xy speed for charge
+ m=0, -- mabataki
+ f=0, -- 0:convoy
+      -- 1:turn-out
+      -- 2:charge
+      -- 3:return
+      -- 4:dead
+      -- -1
+ s=1, -- sprite id
+ p=1, -- point in convoy
+ c=0, -- animation counter
+ fi=20, -- fire interval
+ fc=0,-- fi counter
+ --------------------------------
  new=function(self,_i,_j)
   -- move on charging (sin)
-  local obj={ 
-   i=_i,j=_j,
-   x=0, y=0,
-   vx=0,vy=0, -- xy speed for charge
-   m=0, -- mabataki
-   f=0, -- 0:convoy
-        -- 1:turn-out
-        -- 2:charge
-        -- 3:return
-        -- 4:dead
-        -- -1
-   s=1, -- sprite id
-   p=1, -- point in convoy
-   c=0, -- animation counter
-   fi=20, -- fire interval
-   fc=0,-- fi counter
-   update=self.update,
-   draw  =self.draw,
-   hit   =self.hit,
-   ischg =self.ischg,
-   _convoy =self._convoy,
-   _turnout=self._turnout, 
-   _charge =self._charge,
-   _chgmov =self._chgmov,
-   _fire   =self._fire,
-   _setblt =self._setblt,
-   _turnin =self._turnin
-  }
-  return obj
+  local obj={ i=_i, j=_j }
+  return instance(self,obj)
  end,
-
+ --------------------------------
  update =function(s)
   -- blink
   if s.m>1 then
@@ -437,23 +435,24 @@ anne_0 = { -- abstract
 
 -------------------------------------
 anne_sim = {
+ typ = 1,
+ -- type parameters
+ col = 3, -- dark green
+ p   = 1, -- score
+ -- for mv_sin
+ ax    = 0.1, -- vx accel
+ maxvx = 2, -- max vx
+ margn = 5, -- turn margin
+ vy    = 1.5, -- charge vy
+ dx    = 0,
+ -- fore fire
+ fr    = 10, -- fire rate
+ ---------------
  new = function(self,_i,_j)
   local obj = anne_0:new(_i,_j)
-  obj.typ = 1
-  -- type parameters
-  obj.col = 3 -- dark green
-  obj.p   = 1 -- score
-  -- for mv_sin
-  obj.ax    = 0.1 -- vx accel
-  obj.maxvx = 2 -- max vx
-  obj.margn = 5 -- turn margin
-  obj.vy    = 1.5 -- charge vy
-  obj.dx    = 0
-  -- fore fire
-  obj.fr    = 10 -- fire rate
-  obj.draw = self.draw
-  return obj
+  return instance(self,obj)
  end,
+ ---------------
  draw = function(s)
   pal(4,11)
   pal(5,0)
@@ -470,19 +469,20 @@ anne_sim = {
 }
 -------------------------------------
 anne_zk1 = {
+ typ = 2,
+ -- type parameters
+ col = 3,  -- dgreen
+ p   = 2,  -- score
+ -- for fire
+ fr  = 4, -- fire rate
+ _setblt=anne_0._setblt,
+ ----------------------
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
-  obj.typ = 2
-  -- type parameters
-  obj.col = 3  -- dgreen
-  obj.p   = 2  -- score
-  -- for fire
-  obj.fr  = 4 -- fire rate
-  obj._setblt=anne_0._setblt
-  obj._ochg=obj._charge
-  obj._charge=self._charge
-  return obj
+  obj._ochg=obj._charge -- keep method
+  return instance(self,obj)
  end,
+ ----------------------
  _charge =function(s)
   if s.y<80 then
    s.tc = false
@@ -514,24 +514,24 @@ anne_zk1 = {
 }
 
 anne_zk2 = {
+ typ = 3,
+ col = 11, -- lgreen
+ p   = 3,  -- score
+ -- for mv_sin
+ ax    = 0.1, -- vx step
+ maxvx = 3,   -- max vx
+ margn = 8,   -- turn margin
+ vy    = 1.5, -- charge vy
+ dx    = 0,
+ -- for fire
+ fi  = 10, -- interval
+ fr  = 6, -- fire rate
+ -----------------------
  new = function(self,_i,_j)
   local obj = anne_0:new(_i,_j)
-  obj.typ = 3
-  obj.col = 11 -- lgreen
-  obj.p   = 3  -- score
-  -- for mv_sin
-  obj.ax    = 0.1 -- vx step
-  obj.maxvx = 3   -- max vx
-  obj.margn = 8   -- turn margin
-  obj.vy    = 1.5 -- charge vy
-  obj.dx    = 0
-  -- for fire
-  obj.fi  = 10 -- interval
-  obj.fr  = 6 -- fire rate
-  obj._setblt=self._setblt
-  return obj
+  return instance(self,obj)
  end,
-
+ -----------------------
  _setblt =function(s)
   local v=limabs((player.x-s.x)/16,1)
   return enemies:fire_to(
@@ -542,27 +542,26 @@ anne_zk2 = {
 }
 
 anne_zk2s = {
+ col = 14,
+ -- for charge
+ dgs = 0, -- dodge status
+ dgc = 3, -- dodge counter
+ vy  = 1.5,  -- charge vy
+ fr  = 10, -- fire rate
+ -- natural chager
+ f =2, -- charge
+ vx=0, -- x speed
+ c =0, -- turn counter
+ l =0, -- loop counter
+ fc=0, -- ready to fire
+ ----------------------
  new = function(self,_i,_j)
   -- inherit from type-zk
   local obj  = anne_zk2:new(_i,_j)
   obj._ochg  = obj._charge
-  obj._charge = self._charge
-  obj.col    = 14
-  -- for charge
-  obj.dgs = 0 -- dodge status
-  obj.dgc = 3 -- dodge counter
-  obj.vy  = 1.5  -- charge vy
-  obj.fr  = 10 -- fire rate
-  -- natural chager
-  obj.f =2 -- charge
-  obj.vx=0 -- x speed
-  obj.c =0 -- turn counter
-  obj.l =0 -- loop counter
-  obj.fc=0 -- ready to fire
-  obj._setblt=self._setblt
-  return obj
+  return instance(self,obj)
  end,
-
+ ----------------------
  _charge =function(s)
   d_dgs=s.dgs
   d_dgc=s.dgc
@@ -598,22 +597,18 @@ anne_zk2s = {
 }
 
 anne_zg={
+ typ =  5,
+ col = 12, -- lblue
+ p   =  5, -- score
+ -- for fire
+ fi  =  5, -- interval
+ fr  =  10,
+ -------------------------------
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
-  obj.typ =  5
-  obj.col = 12 -- lblue
-  obj.p   =  5 -- score
-  -- for fire
-  obj.fi  =  5 -- interval
-  obj.fr  =  10
-  obj._convoy = self._convoy
-  obj._turnout= self._turnout
-  obj._charge = self._charge
-  obj._turnin = self._turnin
-  obj._setblt = self._setblt
-  return obj
+  return instance(self,obj)
  end,
-
+ -------------------------------
  _convoy =function(s)
   anne_0._convoy(s)
   s.s = 23
@@ -673,18 +668,17 @@ anne_zg={
 }
 
 anne_gf={
+ fi  = 4, -- fire interval
+ typ = 6,
+ col = 12, -- lblue
+ p   = 4, -- score
+ ax  = 0.15,
+ ------------------------------
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
-  obj._chgmov = self._chgmov
-  obj._fire = self._fire
-  obj.fi  = 4 -- fire interval
-  obj.typ = 6
-  obj.col = 12 -- lblue
-  obj.p   = 4 -- score
-  obj.ax  = 0.15
-  return obj
+  return instance(self,obj)
  end,
-
+ ------------------------------
  _chgmov =function(s)
   if s.vx==0 then
    s.ax = abs(s.ax)*sgn(player.x-s.x)
@@ -717,17 +711,17 @@ anne_gf={
 }
 
 anne_ge={
+ typ = 7,
+ fi  = 4, -- fire interval
+ p   = 5, -- score
+ ax  = 0.15,
+ tx  = nil, -- target-x
+ -------------------------
  new = function(self,_i,_j)
   local obj = anne_zk2:new(_i,_j)
-  obj.typ = 7
-  obj._chgmov = self._chgmov
-  obj.fi  = 4 -- fire interval
-  obj.p   = 5 -- score
-  obj.ax  = 0.15
-  obj.tx  = nil -- target-x
-  return obj
+  return instance(self,obj)
  end,
-
+ -------------------------
  _chgmov =function(s)
   if s.vx==0 then
    s.tx = player.x +
