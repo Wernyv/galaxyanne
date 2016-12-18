@@ -50,7 +50,9 @@ t_sprite={ -- id,hflip,vflip,colligionrect
  -- bullets (8x8)
  { 12, 0, 4, 0,c={-1,-4,1,1}},-- 29 bullet |
  { 28, 1, 2, 0,c={-1,-1,1,1}},-- 30 bullet *
- { 13, 0, 3, 0,c={-1,-3,1,0}} -- 32 misisle
+ { 13, 0, 3, 0,c={-1,-3,1,0}},-- 31 misisle
+ -- no colligion ver
+ {  6, 7, 4, 0}, -- 32 |'-'|
 }
 
 function putat(id,x,y,blink)
@@ -412,6 +414,7 @@ anne_0 = { -- abstract
    spr(93,0,s.y-1) end
   if s.x>128+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
+  pal(8,8)
  end,
 
  hit =function(s)
@@ -461,11 +464,6 @@ anne_sim = {
   pal(15,3)
   anne_0.draw(s)
   pal()
-  --pal(4,4)
-  --pal(5,5)
-  --pal(6,6)
-  --pal(14,14)
-  --pal(15,15)
  end
 }
 -------------------------------------
@@ -549,13 +547,13 @@ anne_zk2s = {
  dgc = 3, -- dodge counter
  vy  = 1.5,  -- charge vy
  fr  = 10, -- fire rate
- -- natural chager
+ -- special init
  f =1, -- turn-out
  vx=0, -- x speed
  c =0, -- turn counter
  l =0, -- loop counter
  fc=0, -- ready to fire
- s =7, -- '-'
+ s =15, -- '-'(co col)
  ----------------------
  new = function(self,_i,_j)
   -- inherit from type-zk
@@ -567,7 +565,7 @@ anne_zk2s = {
  _turnout =function(s)
   s.y -= 4
   if s.y <= -20 then
-   a.x,a.y = 10,-20
+   s.x,s.y = 10,-20
    s.f = 2 -- charge
    s.s = 15 -- ,-,
   end
@@ -754,6 +752,56 @@ anne_ge={
   an_rot_p(s) -- rotate to player
  end,
 }
+
+anne_dm ={
+ -- special init
+ f =1, -- turn-out
+ vx=0, -- x speed
+ c =0, -- turn counter
+ l =0, -- loop counter
+ fi=30000,
+ fr=90,
+ s =32,-- '-'(no col)
+ col =13, -- purple
+ jsr =0,
+ -------------------------
+ new = function(self,_i,_j,pos)
+  local obj = anne_ge:new(_i,_j)
+  obj._precharge = obj._charge
+  obj = instance(self,obj)
+  obj.pos = pos
+  obj.y = 150 + obj.pos * 20
+  return obj
+ end,
+ ----------------------
+ _turnout =function(s)
+  s.y -= 4
+  if s.y <= -20 then
+   s.x,s.y = 10,-20 -- -s.pos*16
+   s.f = 2 -- charge
+   s.s = 15 -- ,-,
+  end
+ end,
+ ----------------------
+ _charge =function(s)
+  if s.y<40 then
+   s.y += s.vy*2
+   s.jsr = 0
+  elseif s.y<48 then
+   s.y += s.vy*2
+   s.fc = 0
+   --fire
+  else
+   s:_precharge()
+   if s.jsr==0 then
+    s.jsr=1
+    s.vx = sgn(s.vx)*s.maxvx
+    s.fc = 3000
+   end
+  end
+ end,
+}
+
 -------------------------------------
 
 anne_types={
@@ -986,9 +1034,9 @@ enemies={
            0,0,0,0)
  end,
  ---
- append=function(s,anne)
+ append=function(s,anne,pos)
   s.anum +=1
-  s.annes[1]=a
+  s.annes[pos]=a
   s:charged()
  end,
  ---
@@ -1046,7 +1094,7 @@ enemies={
     a:draw()
    end
   end
-  pal(8,8)
+  --pal(8,8)
  end,
  ---
  is_clear=function(s)
@@ -1205,7 +1253,7 @@ player={
  ---
  draw =function(s)
   -- ship
-  pal(8,8)
+  --pal(8,8)
   if s.crush == 0 then
    if s.mx<0 then
     putat(31,s.x,s.y-4,0)
@@ -1522,7 +1570,17 @@ function append_zk2s()
  a = anne_zk2s:new(1,1)
  a.x = 127-player.x
  a.y = 140
- enemies:append(a)
+ enemies:append(a,1)
+ music(8)
+end
+
+function append_dms()
+ for i=0,2 do
+  a = anne_dm:new(1,1,i)
+  a.x = rnd(100)+16
+  enemies:append(a,i+1)
+  a.gaia = enemies.annes[1]
+ end
  music(8)
 end
 
@@ -1550,17 +1608,20 @@ stages={
   end,
  },
  { str="stage 2", sub="evaluate",
-  convoy={types={6,3,3 },
-          forms={4,1,1 }},
+  convoy={types={6}, --,3,3 },
+          forms={4}}, --,1,1 }},
   charge=60, -- charge interval init
   back = backs.spin,
   --back = backs.stars,
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
-     player.kills>=15 then
-     append_zk2s()
-     s.scnt+=1
+     --player.kills>=15 then
+     player.kills>=1 then
+     --append_zk2s()
+     append_dms()
+     --s.scnt+=1
+     s.scnt+=3
    end
   end,
   nxt=5
