@@ -167,6 +167,7 @@ function in_range(v,mn,mx)
 end
 
 function get_ang(from,to)
+ -- right=0 up=0.25 left=0.5 
  local dx = to.x-from.x
  local dy = to.y-from.y
  return atan2(dx,dy)
@@ -221,6 +222,11 @@ function an_rot_p(s)
   an_rot_to(s,limit(a,0.55,0.95))
  end
 end
+
+--function an_angle_spr(ang)
+-- ang -= flr(ang) -- 0..1
+-- return 3 + flr((ang+0,03125)/0.0625)
+--end
 
 anne_0 = { -- abstract
  x=0, y=0,
@@ -300,16 +306,13 @@ anne_0 = { -- abstract
     then
     s.f=1 -- turn-out
     s.s=7 -- spr for #1
-    s.c=0 -- turn counter
+    s.c=0 -- turnout counter
    end
   end
  end,
 
  _turnout =function(s)
-  if s.c==0 then
---   sfx(1,3)
-  end
-  s.c += 1
+  s.c += 1 -- turnout
   if s.c%2==0 then
    if s.i <= 3 then -- leftside
     s.s = an_rot_l(s.s)
@@ -325,8 +328,8 @@ anne_0 = { -- abstract
   if s.s==15 then -- complete
    s.f =2 -- charge
    s.vx=0 -- x speed
-   s.c =0 -- turn counter
-   s.l =0 -- loop counter
+   s.c =0 -- turnout counter
+   s.lc=0 -- loop counter
    s.fc=0 -- ready to fire
   end
  end,
@@ -338,15 +341,15 @@ anne_0 = { -- abstract
   end
   -- state change
   if s.y>128 then -- loopback
-   s.l+=1
-   if s.l>=3 then -- 3 loops
+   s.lc+=1
+   if s.lc>=3 then -- 3 loops
     s.f=-1 -- escaped
    elseif enemies.anum>4 or 
           enemies.en_charge==false then
     s.f =  3 -- return
     s.y =-16 -- rewind y to top
     s.s = 15 -- 
-    s.c =  0 -- turn counter
+    s.c =  0 -- turnin counter
     s.dx=  0
    else
     -- rewind top and x adjust
@@ -438,8 +441,8 @@ anne_0 = { -- abstract
 
 -------------------------------------
 anne_sim = {
- typ = 1,
  -- type parameters
+ typ = 1,
  col = 3, -- dark green
  p   = 1, -- score
  -- for mv_sin
@@ -468,8 +471,8 @@ anne_sim = {
 }
 -------------------------------------
 anne_zk1 = {
- typ = 2,
  -- type parameters
+ typ = 2,
  col = 3,  -- dgreen
  p   = 2,  -- score
  -- for fire
@@ -484,11 +487,11 @@ anne_zk1 = {
  ----------------------
  _charge =function(s)
   if s.y<80 then
-   s.tc = false
+   s.ts = false
   end
   oy =s.y
   s:_ochg(s.tc)
-  if s.tc==false then
+  if s.ts==false then
    local dd=abs(player.x-s.x)/
             abs(player.y-s.y)
    if in_field(s) and
@@ -496,12 +499,12 @@ anne_zk1 = {
     s.tx = abs(s.maxvx)
           *sgn(player.x-s.x)
     s.ta = 0.75+0.125*sgn(s.tx)
-    s.tc=0
+    s.ts=0
    end
   else
-   if s.tc <= 10 then
-    s.tc += 1
-    if s.tc%3==0 then
+   if s.ts <= 10 then
+    s.ts += 1
+    if s.ts%3==0 then
      an_rot_to(s,s.ta)
     end
    else
@@ -554,6 +557,7 @@ anne_zk2s = {
  l =0, -- loop counter
  fc=0, -- ready to fire
  s =15, -- '-'(co col)
+ ace =true,
  ----------------------
  new = function(self,_i,_j)
   -- inherit from type-zk
@@ -571,12 +575,12 @@ anne_zk2s = {
   end
  end,
  _charge =function(s)
-  d_dgs=s.dgs
-  d_dgc=s.dgc
+  d_dgs=s.dgs --debug
+  d_dgc=s.dgc --debug
   s:_ochg() -- inherit
   print(scene.name,64,64)
   if scene.name=="miss" then
-   s.l=3
+   s.lc=3
   end
   local mx=player.mx
   local my=player.my
@@ -638,7 +642,7 @@ anne_zg={
    s.f = 2
    s.vx=0
    s.c =0 -- turn counter
-   s.l =0 -- loop counter
+   s.lc =0 -- loop counter
    s.fc=0 -- ready to fire
   end
   if s.sqc<25 then
@@ -757,47 +761,70 @@ anne_dm ={
  -- special init
  f =1, -- turn-out
  vx=0, -- x speed
- c =0, -- turn counter
- l =0, -- loop counter
- fi=30000,
- fr=90,
+ --c =0, -- turn counter
+ lc=-1, -- loop counter
+ ax=0.1,
+ --fi=30000,
+ --fr=90,
  s =32,-- '-'(no col)
  col =13, -- purple
  jsr =0,
+ ace =true,
  -------------------------
  new = function(self,_i,_j,pos)
-  local obj = anne_ge:new(_i,_j)
+  local obj = anne_gf:new(_i,_j)
   obj._precharge = obj._charge
   obj = instance(self,obj)
   obj.pos = pos
-  obj.y = 150 + obj.pos * 20
+  obj.y = 210 - obj.pos * 20
+  obj.gaia = enemies.annes[1]
+  obj.jsr = 0 -- 0:turnour 1:charge
   return obj
  end,
  ----------------------
- _turnout =function(s)
+ _turnout =function(s) 
+  if s.pos==1 then
+   s.jsr = 0 -- turnout
+  end
+  if s.gaia.jsr!=0 then
+   return
+  end
+  if s.s!=32 and
+     an_rot_to(s,0.25)==true then
+   return
+  end
   s.y -= 4
   if s.y <= -20 then
-   s.x,s.y = 10,-20 -- -s.pos*16
    s.f = 2 -- charge
    s.s = 15 -- ,-,
+   s.x = 64
+   s.y = -80 + s.pos*20
+   s.lc += 1
   end
  end,
  ----------------------
  _charge =function(s)
+  if s.pos==1 then
+   dbg1=1
+   s.jsr = 1
+  end
+  if s.gaia.jsr!=1 then
+   return
+  end
+  if s.gaia.f==-1 then
+   s.fc = s.fi
+   s._charge = s._precharge()
+  end
   if s.y<40 then
    s.y += s.vy*2
-   s.jsr = 0
   elseif s.y<48 then
    s.y += s.vy*2
-   s.fc = 0
-   --fire
-  else
+   s.vx = s.maxvx*sgn(rnd(2)-1)
+  elseif s.y<120 or s.lc==3 then
    s:_precharge()
-   if s.jsr==0 then
-    s.jsr=1
-    s.vx = sgn(s.vx)*s.maxvx
-    s.fc = 3000
-   end
+  else
+   s.f =1 -- turnout
+   s.c +=1
   end
  end,
 }
@@ -1040,6 +1067,10 @@ enemies={
   s:charged()
  end,
  ---
+ missed=function(s)
+  s.pmissed=true
+ end,
+ ---
  update=function(s)
   -- dance frame
   s.dcnt=(s.dcnt+1)%10
@@ -1054,9 +1085,13 @@ enemies={
   -- update all enemies
   for a in all(s.annes) do
    if a.f != -1 then
+    if s.pmissed and a.ace then
+     a.lc = 3
+    end
     a:update()
    end
   end
+  s.pmissed=false
   -- update all bullets
   for b in all(s.bullets) do
    if b.a==true then -- is active
@@ -1201,6 +1236,7 @@ player={
     s.en_shot = false
     s.crush = 1
     sfx(3,1) -- miss
+    enemies:missed()
   end
   -- buttons
   if s.crush==0 then
@@ -1575,10 +1611,10 @@ function append_zk2s()
 end
 
 function append_dms()
- for i=0,2 do
+ for i=1,3 do
   a = anne_dm:new(1,1,i)
   a.x = rnd(100)+16
-  enemies:append(a,i+1)
+  enemies:append(a,i)
   a.gaia = enemies.annes[1]
  end
  music(8)
@@ -1589,7 +1625,7 @@ stages={
  },
  { str="stage 0", sub="pre-training",
   convoy={types={1,1 },  -- type/line
-          forms={4,1 }, -- form/line
+          forms={4,4 }, -- form/line
           noc=1}, -- cancel fly-in
   charge=90, -- charge interval init
   back=backs.training,
@@ -1653,7 +1689,7 @@ stages={
   nxt=7
  },
  { str="stage 6", sub="spars",
-  convoy={types={6,6,2,2,2 },  -- type/line
+  convoy={types={6,6,7,2,2 },  -- type/line
           forms={6,5,6,5,6 }}, -- form/line
   charge=50, -- charge interval init
   back = backs.stars,
