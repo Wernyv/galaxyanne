@@ -340,7 +340,7 @@ anne_0 = { -- abstract
    s:_chgmov()
   end
   -- state change
-  if s.y>128 then -- loopback
+  if s.y>128+8 then -- loopback
    s.lc+=1
    if s.lc>=3 then -- 3 loops
     s.f=-1 -- escaped
@@ -761,14 +761,10 @@ anne_dm ={
  -- special init
  f =1, -- turn-out
  vx=0, -- x speed
- --c =0, -- turn counter
- lc=-1, -- loop counter
+ lc=-2, -- loop counter
  ax=0.1,
- --fi=30000,
- --fr=90,
  s =32,-- '-'(no col)
  col =13, -- purple
- jsr =0,
  ace =true,
  -------------------------
  new = function(self,_i,_j,pos)
@@ -778,53 +774,51 @@ anne_dm ={
   obj.pos = pos
   obj.y = 210 - obj.pos * 20
   obj.gaia = enemies.annes[1]
-  obj.jsr = 0 -- 0:turnour 1:charge
   return obj
  end,
  ----------------------
  _turnout =function(s) 
-  if s.pos==1 then
-   s.jsr = 0 -- turnout
-  end
-  if s.gaia.jsr!=0 then
-   return
-  end
-  if s.s!=32 and
-     an_rot_to(s,0.25)==true then
-   return
-  end
   s.y -= 4
-  if s.y <= -20 then
-   s.f = 2 -- charge
-   s.s = 15 -- ,-,
-   s.x = 64
-   s.y = -80 + s.pos*20
-   s.lc += 1
+  if s.y > -20 then
+   return
   end
+  if s.pos==1 then
+   s:_to_charge()
+  elseif s.gaia.y==-60 then
+   s:_to_charge()
+  end
+ end,
+ _to_charge =function(s)
+  s.f = 2 -- charge
+  s.s = 15 -- ,-,
+  if s.pos==1 then
+   s.x = 64-30+flr(rnd(60))
+  else
+   s.x = s.gaia.x
+  end
+  s.y = -80 + s.pos*20
  end,
  ----------------------
  _charge =function(s)
-  if s.pos==1 then
-   dbg1=1
-   s.jsr = 1
-  end
-  if s.gaia.jsr!=1 then
-   return
-  end
-  if s.gaia.f==-1 then
+  if s.pos>1 and s.gaia.f==-1 then
    s.fc = s.fi
-   s._charge = s._precharge()
+   s._charge = s._precharge
   end
   if s.y<40 then
+   -- down
    s.y += s.vy*2
   elseif s.y<48 then
+   -- shot
    s.y += s.vy*2
    s.vx = s.maxvx*sgn(rnd(2)-1)
-  elseif s.y<120 or s.lc==3 then
-   s:_precharge()
   else
-   s.f =1 -- turnout
-   s.c +=1
+   -- break
+   local prey=s.y
+   s:_precharge()
+   if prey>s.y then
+    --return->turnout
+    s.f=1
+   end
   end
  end,
 }
@@ -1737,7 +1731,7 @@ scenes={
   ---
   draw =function(s)
    map(1,0,23,40,10,1)
-   print("   (rev.0.6)", 20,50)
+   print("   (rev.0.7)", 20,50)
    putat(31,64,70-4,0)
    putat(25,64,70,0)
    print("hit button to start",20,90)
