@@ -188,6 +188,11 @@ function instance(class, obj)
  return obj
 end
 
+function pals(p1,p2)
+ for i=1,#p1 do
+  pal(p1[i],p2[i])
+ end
+end
 -----------------------------
 -- anness -------------------
 
@@ -237,6 +242,7 @@ anne_0 = { -- abstract
       -- 2:charge
       -- 3:turn-in
       -- 4:dead
+      -- 5:cascade?
       -- -1
  s=1, -- sprite id
  p=1, -- point in convoy
@@ -294,6 +300,12 @@ anne_0 = { -- abstract
            +flr(enemies.x)
   local wy=enemies.rests[s.j][s.i].y+d.y
   local ps=d.s
+  if stage.stocks!=nil and
+   abs(s.x-wx)>2 then
+   s.x+=sgn(wx-s.x)
+   s.y+=sgn(wy-s.y)
+   return
+  end
   s.x=wx
   s.y=wy
   s.s=d.s
@@ -411,13 +423,13 @@ anne_0 = { -- abstract
  end,
 
  draw =function(s)
-  pal(8,s.col)
+  pal((s.ace and 4) or 8,s.col)
   putat(s.s,s.x,s.y,flr(s.m/3))
   if s.x<-8 then
    spr(93,0,s.y-1) end
   if s.x>128+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
-  pal(8,8)
+  pal()
  end,
 
  hit =function(s)
@@ -460,13 +472,14 @@ anne_sim = {
  end,
  ---------------
  draw = function(s)
-  pal(4,11)
-  pal(5,0)
-  pal(6,0)
-  pal(14,3)
-  pal(15,3)
+  pals({4,5,6,14,15,7,9,10},
+       {11,0,0,3,3,11,3,3})
+ -- pal(4,11)
+ -- pal(5,0)
+ -- pal(6,0)
+ -- pal(14,3)
+ -- pal(15,3)
   anne_0.draw(s)
-  pal()
  end
 }
 -------------------------------------
@@ -639,10 +652,10 @@ anne_zg={
    s.y += s.sqy
    s.x += s.sqx
   else
-   s.f = 2
+   s.f =2 -- charge
    s.vx=0
    s.c =0 -- turn counter
-   s.lc =0 -- loop counter
+   s.lc=0 -- loop counter
    s.fc=0 -- ready to fire
   end
   if s.sqc<25 then
@@ -712,8 +725,7 @@ anne_gf={
 
  _fire =function(s)
   -- fire control (random)
-  if s.fc>0 or s.y>80 then
-   return end
+  if(s.fc>0 or s.y>80) return
   if abs(s.vx)<=0.6 then
    if s:_setblt()==true then
     s.fc=s.fi
@@ -759,13 +771,12 @@ anne_ge={
 
 anne_dm ={
  -- special init
- f =1, -- turn-out
- vx=0, -- x speed
- lc=-2, -- loop counter
- ax=0.1,
- s =32,-- '-'(no col)
- col =13, -- purple
- ace =true,
+ f  =1, -- turn-out
+ vx =0, -- x speed
+ lc =-2, -- loop counter
+ s  =32,-- '-'(no col)
+ col=13, -- purple
+ ace=true,
  -------------------------
  new = function(self,_i,_j,pos)
   local obj = anne_gf:new(_i,_j)
@@ -779,9 +790,7 @@ anne_dm ={
  ----------------------
  _turnout =function(s) 
   s.y -= 4
-  if s.y > -20 then
-   return
-  end
+  if(s.y > -20) return
   if s.pos==1 then
    s:_to_charge()
   elseif s.gaia.y==-60 then
@@ -789,7 +798,7 @@ anne_dm ={
   end
  end,
  _to_charge =function(s)
-  s.f = 2 -- charge
+  s.f = 2 --> charge
   s.s = 15 -- ,-,
   if s.pos==1 then
    s.x = 64-30+flr(rnd(60))
@@ -797,27 +806,29 @@ anne_dm ={
    s.x = s.gaia.x
   end
   s.y = -80 + s.pos*20
+  s.fc=1000
  end,
  ----------------------
  _charge =function(s)
+  local tbl = {0,16,-16}
   if s.pos>1 and s.gaia.f==-1 then
-   s.fc = s.fi
+   s.fc=0
+   s.maxvx=2.5
    s._charge = s._precharge
   end
   if s.y<40 then
-   -- down
    s.y += s.vy*2
-  elseif s.y<48 then
-   -- shot
+  elseif s.y<44 then
+   enemies:fire_to(s.x,s.y,
+       player.x+tbl[s.pos],
+       player.y, 4)
    s.y += s.vy*2
    s.vx = s.maxvx*sgn(rnd(2)-1)
   else
-   -- break
    local prey=s.y
    s:_precharge()
    if prey>s.y then
-    --return->turnout
-    s.f=1
+    s.f=1 --> turnout
    end
   end
  end,
@@ -870,6 +881,8 @@ enemies={
  en_charge=false, -- enable charge
  chg_cnt=0,
  chg_num=0,
+ deadbody={f=-2},
+ emptybody={f=-1},
  ---
  init=function(s)
   -- init rest positions
@@ -925,7 +938,8 @@ enemies={
       a.f = 3 -- turn-in
      end
     else
-     a.f=-1 -- inactive
+     a = s.deadbody
+     --a.f=-1 -- inactive
     end
     s.annes[sq] = a
     sq += 1
@@ -989,7 +1003,7 @@ enemies={
  ---
  hitrect=function(s,x,y,c)
   for a in all(s.annes) do
-   if a.f!=-1 then -- alive
+   if a.f>=0 then -- alive
     if colligion(x,y,c,
         a.x,a.y,t_sprite[a.s].c) then
      return a
@@ -1055,6 +1069,31 @@ enemies={
            0,0,0,0)
  end,
  ---
+ slide=function(s,a)
+  if(a.f!=0)return --not convoy
+  local ir = 6*(a.j+1-1)+a.i+1
+  local il = ir-2
+  if a.i<6 and -- not r-edge
+     s.annes[ir]!=nil and
+     s.annes[ir].f==-1 then
+     s:_dropto(a,1)
+     return
+  end
+  if a.i>1 and -- not l-edge
+     s.annes[il]!=nil and
+     s.annes[il].f==-1 then
+     s:_dropto(a,-1)
+  end
+ end,
+ _dropto=function(s,a,di)
+  local t = a
+  local i = 6*(a.j-1)+a.i
+  s.annes[i]=a.emptybody
+  t.i += di
+  t.j += 1
+  s.annes[i+6+di] = t
+ end,
+ ---
  append=function(s,anne,pos)
   s.anum +=1
   s.annes[pos]=a
@@ -1078,9 +1117,12 @@ enemies={
   end
   -- update all enemies
   for a in all(s.annes) do
-   if a.f != -1 then
+   if a.f>=0 then -- active
     if s.pmissed and a.ace then
      a.lc = 3
+    end
+    if stage.stocks!=nil then
+     s:slide(a)
     end
     a:update()
    end
@@ -1119,7 +1161,7 @@ enemies={
   end
   -- enemies
   for a in all(s.annes) do
-   if a.f != -1 then 
+   if a.f>=0 then 
     a:draw()
    end
   end
@@ -1685,6 +1727,7 @@ stages={
  { str="stage 6", sub="spars",
   convoy={types={6,6,7,2,2 },  -- type/line
           forms={6,5,6,5,6 }}, -- form/line
+  stocks={2,6,7},
   charge=50, -- charge interval init
   back = backs.stars,
   clear =function(s)
