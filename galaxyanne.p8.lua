@@ -252,7 +252,7 @@ anne_0 = { -- abstract
  --------------------------------
  new=function(self,_i,_j)
   -- move on charging (sin)
-  local obj={ i=_i, j=_j }
+  local obj={ i=_i, j=_j, idx=6*(_j-1)+_i }
   return instance(self,obj)
  end,
  --------------------------------
@@ -301,9 +301,9 @@ anne_0 = { -- abstract
   local wy=enemies.rests[s.j][s.i].y+d.y
   local ps=d.s
   if stage.stocks!=nil and
-   abs(s.x-wx)>2 then
-   s.x+=sgn(wx-s.x)
-   s.y+=sgn(wy-s.y)
+   abs(s.y-wy)>2 then
+   s.y+=sgn(wy-s.y)*2
+   s.s=24
    return
   end
   s.x=wx
@@ -515,14 +515,14 @@ anne_zk1 = {
     s.ts=0
    end
   else
-   if s.ts <= 10 then
-    s.ts += 1
+   if s.ts <= 1 then
+    s.ts += 10
     if s.ts%3==0 then
      an_rot_to(s,s.ta)
     end
    else
     s.x += s.tx
-    s.y += s.vy*1.5
+    s.y += s.vy --*1.5
    end
   end
  end
@@ -567,7 +567,7 @@ anne_zk2s = {
  f =1, -- turn-out
  vx=0, -- x speed
  c =0, -- turn counter
- l =0, -- loop counter
+ lc=0, -- loop counter
  fc=0, -- ready to fire
  s =15, -- '-'(co col)
  ace =true,
@@ -813,7 +813,7 @@ anne_dm ={
   local tbl = {0,16,-16}
   if s.pos>1 and s.gaia.f==-1 then
    s.fc=0
-   s.maxvx=2.5
+   s.maxvx=2
    s._charge = s._precharge
   end
   if s.y<40 then
@@ -821,7 +821,7 @@ anne_dm ={
   elseif s.y<44 then
    enemies:fire_to(s.x,s.y,
        player.x+tbl[s.pos],
-       player.y, 4)
+       player.y, 3)
    s.y += s.vy*2
    s.vx = s.maxvx*sgn(rnd(2)-1)
   else
@@ -837,13 +837,14 @@ anne_dm ={
 -------------------------------------
 
 anne_types={
-  anne_sim,
-  anne_zk1,
-  anne_zk2,
-  anne_zk2s,
-  anne_zg,
-  anne_gf,
-  anne_ge,
+  anne_sim, -- 1
+  anne_zk1, -- 2
+  anne_zk2, -- 3
+  anne_zk2s,-- 4 ace
+  anne_zg,  -- 5
+  anne_gf,  -- 6
+  anne_ge,  -- 7
+  anne_dm,  -- 8 ace
 }
 
 function build_anne(n,i,j)
@@ -869,6 +870,10 @@ end
 -----------------------------
 -- enemies ------------------
 
+ij2idx=function(i,j)
+ return (j-1)*6+i
+end
+
 enemies={
  ---
  form={{1,1,1,1,1,1},  -- 1
@@ -881,8 +886,8 @@ enemies={
  en_charge=false, -- enable charge
  chg_cnt=0,
  chg_num=0,
- deadbody={f=-2},
- emptybody={f=-1},
+ annedead={f=-1},
+ dummyanne={f=-2}, -- 666
  ---
  init=function(s)
   -- init rest positions
@@ -920,38 +925,49 @@ enemies={
   s.chg_int=stage.charge
   s.chg_cnt=stage.charge
   s.chg_num=0
+  if stage.stocks then
+   s.stidx = {0,0,0,0,0,0}
+  end
   local sq = 1 -- sequencial
-  local cv = stage.convoy.types
-  local fm = stage.convoy.forms
+  local cv = stage.types
+  local fm = stage.forms
   for j=1,#cv do
    for i=1,6 do
-    local a =
-       build_anne(cv[j],i,j)
+    sq=(j-1)*6+i
     if s.form[fm[j]][i]==1 then
-     s.anum += 1
-     a.s = 1 -- ('-')
-     a.f = 0 -- convoy
-     if stage.convoy.noc==nil then
-      -- cancel fly-in
-      a.y = -10*a.y
-      a.s = 7 -- (,-,)
-      a.f = 3 -- turn-in
-     end
+     local a = s:launch(cv[j],i,j)
+     s.chg_num +=1
     else
-     a = s.deadbody
-     --a.f=-1 -- inactive
+     s.annes[sq] = s.dummyanne
     end
-    s.annes[sq] = a
-    sq += 1
+--     local a =
+--        build_anne(cv[j],i,j)
+--     if s.form[fm[j]][i]==1 then
+--      s.anum += 1
+--      a.s = 1 -- ('-')
+--      a.f = 0 -- convoy
+--      if stage.noc==nil then
+--       -- cancel fly-in
+--       a.y = -10*a.y
+--       a.s = 7 -- (,-,)
+--       a.f = 3 -- turn-in
+--      end
+--     else
+--      a = s.annedead
+--      --a.f=-1 -- inactive
+--     end
+--     s.annes[sq] = a
+--     sq += 1
    end
   end
+  s.bottom=#cv
  end,
  ---
  exist=function(s,i,j)
   if j<1 then
    return false -- over top
   end
-  if s.annes[6*(j-1)+i].f!=0 then
+  if s.annes[ij2idx(i,j)].f!=0 then
    return false -- dead or fly
   end
   return true -- exist
@@ -1069,29 +1085,50 @@ enemies={
            0,0,0,0)
  end,
  ---
- slide=function(s,a)
-  if(a.f!=0)return --not convoy
-  local ir = 6*(a.j+1-1)+a.i+1
-  local il = ir-2
-  if a.i<6 and -- not r-edge
-     s.annes[ir]!=nil and
-     s.annes[ir].f==-1 then
-     s:_dropto(a,1)
-     return
-  end
-  if a.i>1 and -- not l-edge
-     s.annes[il]!=nil and
-     s.annes[il].f==-1 then
-     s:_dropto(a,-1)
+ drop=function(s,idx)
+  local t = idx+6
+  while t <= s.bottom*6 do
+   if s.annes[t].f>=0 then
+    return
+   end
+   if s.annes[t].f==-1 then
+    s.annes[t]=s.annes[idx]
+    s.annes[t].j=flr((t-1)/6)+1
+    s.annes[t].idx = t
+    s.annes[idx]=s.annedead
+   end
+   t +=6
   end
  end,
- _dropto=function(s,a,di)
-  local t = a
-  local i = 6*(a.j-1)+a.i
-  s.annes[i]=a.emptybody
-  t.i += di
-  t.j += 1
-  s.annes[i+6+di] = t
+ ---
+ supply=function(s)
+  for i,v in pairs(s.stidx) do
+   if v<#stage.stocks then
+    local j=0
+    for p=i,s.bottom*6,6 do
+     dbg_p = p
+     j +=1
+     if s.annes[p].f>=0 then
+      break
+     end
+     if s.annes[p].f==-1 then
+      s.stidx[i]+=1
+      s:launch(stage.stocks[s.stidx[i]],i,j)
+      s.chg_num +=1
+      break
+     end
+    end
+   end
+  end
+ end,
+ ---
+ launch=function(s,t,i,j,noc)
+  local p=anne_types[t]:new(i,j) 
+  s.annes[ij2idx(i,j)]=p
+  s.anum += 1
+  p.s,p.f = 7,3 -- (,-,),turnin
+  p.y = -10*p.y
+  return p
  end,
  ---
  append=function(s,anne,pos)
@@ -1121,11 +1158,14 @@ enemies={
     if s.pmissed and a.ace then
      a.lc = 3
     end
-    if stage.stocks!=nil then
-     s:slide(a)
+    if stage.stocks then
+     s:drop(a.idx)
     end
     a:update()
    end
+  end
+  if stage.stocks then
+   s:supply()
   end
   s.pmissed=false
   -- update all bullets
@@ -1659,18 +1699,17 @@ end
 stages={
  { -- [1]title screen
  },
- { str="stage 0", sub="pre-training",
-  convoy={types={1,1 },  -- type/line
-          forms={4,4 }, -- form/line
-          noc=1}, -- cancel fly-in
+ { str="stage 0", sub="simulation",
+  types={1,1 }, -- type/line
+  forms={2,1 }, -- form/line
   charge=90, -- charge interval init
   back=backs.training,
   trn=1, -- noiz transition
-  nxt=4 --3
+  nxt=3
  },  
  { str="stage 1", sub="encount",
-  convoy={types={3,3,3 },  -- type/line
-          forms={2,1,1 }}, -- form/line
+  types={3,3,3 }, -- type/line
+  forms={2,1,1 }, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   trn=1, -- noiz transition
@@ -1680,8 +1719,8 @@ stages={
   end,
  },
  { str="stage 2", sub="evaluate",
-  convoy={types={6}, --,3,3 },
-          forms={4}}, --,1,1 }},
+  types={6,3,3},
+  forms={4,1,1},
   charge=60, -- charge interval init
   back = backs.spin,
   --back = backs.stars,
@@ -1690,17 +1729,17 @@ stages={
       s.scnt==0 and
      --player.kills>=15 then
      player.kills>=1 then
-     --append_zk2s()
-     append_dms()
-     --s.scnt+=1
-     s.scnt+=3
+     append_zk2s()
+     s.scnt+=1
+     --append_dms()
+     --s.scnt+=3
    end
   end,
   nxt=5
  },
  { str="stage 3", sub="feed-forward",
-  convoy={types={5,5,5 },  -- type/line
-          forms={6,5,6 }}, -- form/line
+  types={5,5,5 },
+  forms={6,5,6 },
   charge=40, -- charge interval init
   back = backs.storm,
   entry =function(s)
@@ -1718,16 +1757,16 @@ stages={
   nxt=6
  },
  { str="stage 4",
-  convoy={types={6,3,2 },  -- type/line
-          forms={2,1,1 }}, -- form/line
+  types={6,3,2 },
+  forms={2,1,1 },
+  stocks={2,2,2},
   charge=50, -- charge interval init
   back = backs.stars,
   nxt=7
  },
  { str="stage 6", sub="spars",
-  convoy={types={6,6,7,2,2 },  -- type/line
-          forms={6,5,6,5,6 }}, -- form/line
-  stocks={2,6,7},
+  types={6,6,7,2,2 },
+  forms={6,5,6,5,6 },
   charge=50, -- charge interval init
   back = backs.stars,
   clear =function(s)
