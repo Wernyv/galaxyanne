@@ -362,7 +362,7 @@ anne_0 = { -- abstract
     s.y =-16 -- rewind y to top
     s.s = 15 -- 
     s.c =  0 -- turnin counter
-    s.dx=  0
+    --s.dx=  0
    else
     -- rewind top and x adjust
     s.y=-16
@@ -502,27 +502,25 @@ anne_zk1 = {
   if s.y<80 then
    s.ts = false
   end
-  oy =s.y
-  s:_ochg(s.tc)
+  s:_ochg(s.ts)
   if s.ts==false then
    local dd=abs(player.x-s.x)/
             abs(player.y-s.y)
    if in_field(s) and
       s.y>=80 and near(dd,1,0.2) then
-    s.tx = abs(s.maxvx)
-          *sgn(player.x-s.x)
+    s.tx = 3 * sgn(player.x-s.x)
     s.ta = 0.75+0.125*sgn(s.tx)
-    s.ts=0
+    s.ts = 0 -- not nil
    end
   else
-   if s.ts <= 1 then
-    s.ts += 10
-    if s.ts%3==0 then
+   if s.ts <= 10 then
+    s.ts += 1
+    --if s.ts%3==0 then
      an_rot_to(s,s.ta)
-    end
+    --end
    else
     s.x += s.tx
-    s.y += s.vy --*1.5
+    s.y += abs(s.tx) --s.vy --*1.5
    end
   end
  end
@@ -569,7 +567,7 @@ anne_zk2s = {
  c =0, -- turn counter
  lc=0, -- loop counter
  fc=0, -- ready to fire
- s =15, -- '-'(co col)
+ s =32,-- '-'(no col)
  ace =true,
  ----------------------
  new = function(self,_i,_j)
@@ -591,10 +589,10 @@ anne_zk2s = {
   d_dgs=s.dgs --debug
   d_dgc=s.dgc --debug
   s:_ochg() -- inherit
-  print(scene.name,64,64)
-  if scene.name=="miss" then
-   s.lc=3
-  end
+  --print(scene.name,64,64)
+  --if scene.name=="miss" then
+  -- s.lc=3
+  --end
   local mx=player.mx
   local my=player.my
   if s.dgs != 0 then
@@ -676,7 +674,7 @@ anne_zg={
    s.f =  3 -- return
    s.y =-16 -- rewind y to top
    s.c =  0 -- turn counter
-   s.dx=  0
+   --s.dx=  0
   end
  end,
 
@@ -1708,8 +1706,8 @@ stages={
   nxt=3
  },  
  { str="stage 1", sub="encount",
-  types={3,3,3 }, -- type/line
-  forms={2,1,1 }, -- form/line
+  types={3,3}, -- type/line
+  forms={2,1}, -- form/line
   charge=60, -- charge interval init
   back = backs.stars,
   trn=1, -- noiz transition
