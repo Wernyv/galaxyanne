@@ -144,18 +144,8 @@ oo={x=63.5,y=63.5}
 -----------------------------
 -- functions ----------------
 
-function limit(v,mn,mx)
- if v>mx then
-  v=mx end
- if v<mn then
-  v=mn
- end
- return v
-end
-
 function limabs(_v,_w)
- -- limit v to +w..-w
- return limit(_v,-_w,_w)
+ return mid(-w,_v,_w)
 end
 
 function near(v,t,m)
@@ -224,19 +214,36 @@ function an_rot_p(s)
  if s.c >= 5 then
   s.c=0
   local a = get_ang(s,player)
-  an_rot_to(s,limit(a,0.55,0.95))
+  an_rot_to(s,mid(0.55,a,0.95))
  end
 end
 
---function an_angle_spr(ang)
--- ang -= flr(ang) -- 0..1
--- return 3 + flr((ang+0,03125)/0.0625)
---end
+-- shot methods --------------
+function an_shot_down(s)
+  return enemies:fire_for(
+         s.x,s.y, 0.75, 3)
+end
 
-anne_0 = { -- abstract
+function an_shot_rnd(s)
+ local a=get_ang(s,player)+rnd(s.fw)-(s.fw/2)
+ a = mid(0.75-s.fw/2, a, 0.75+s.fw/2)
+ return enemies:fire_for(s.x,s.y,a,3)
+end
+
+function an_shot_thin(s)
+  local v=limabs((player.x-s.x)/16,1)
+  return enemies:fire_to(
+      s.x, s.y,     -- src
+      s.x+v, s.y,--+3, -- dst
+      3)             -- spd/frame
+end
+
+anne_zk2 = {
+ col = 11, -- lgreen
+ p   = 3,  -- score
+ ----
  x=0, y=0,
  vx=0,vy=0, -- xy speed for charge
- m=0, -- mabataki
  f=0, -- 0:convoy
       -- 1:turn-out
       -- 2:charge
@@ -244,11 +251,20 @@ anne_0 = { -- abstract
       -- 4:dead
       -- 5:cascade?
       -- -1
+ m=0, -- mabataki
  s=1, -- sprite id
- p=1, -- point in convoy
  c=0, -- animation counter
- fi=20, -- fire interval
- fc=0,-- fi counter
+ -- for mv_sin
+ ax    = 0.1, -- vx step
+ maxvx = 3,   -- max vx
+ margn = 8,   -- turn margin
+ vy    = 1.5, -- charge vy
+ -- for fire
+ fi  = 10, -- interval
+ fr  = 6, -- fire rate
+ fc  = 0,-- fi counter
+ fa  = 0.05, -- trigger angle(/2)
+ fw  = 0.1, -- fire width
  --------------------------------
  new=function(self,_i,_j)
   -- move on charging (sin)
@@ -366,7 +382,7 @@ anne_0 = { -- abstract
    else
     -- rewind top and x adjust
     s.y=-16
-    s.x = limit(s.x,0,120)
+    s.x = mid(0,s.x,120)
  --   if s.x<0   then s.x=0 end
  --   if s.x>120 then s.x=120 end
    end
@@ -389,8 +405,7 @@ anne_0 = { -- abstract
  _fire =function(s)
   -- fire control (random)
   if(s.fc>0)          return
-  if(abs(player.x-s.x)>50)  return
-  -- if flr(rnd(s.fr)) == 5 and
+  if(abs(0.75-get_ang(s,player))>s.fa)return
   if rnd(100)<=s.fr and
      s.y<80 then
    if s:_setblt()==true then
@@ -399,10 +414,8 @@ anne_0 = { -- abstract
   end
  end,
 
- _setblt =function(s)
-  return enemies:fire_for(
-         s.x,s.y, -0.0, 3)
- end,
+ --_setblt =an_shot_down,
+ _setblt =an_shot_rnd, --thin,
 
  _turnin =function(s)
   local rpos=enemies:restpos(s.i,s.j)
@@ -453,8 +466,8 @@ anne_0 = { -- abstract
 
 -------------------------------------
 anne_sim = {
+ super=anne_zk2,
  -- type parameters
- typ = 1,
  col = 3, -- dark green
  p   = 1, -- score
  -- for mv_sin
@@ -462,38 +475,35 @@ anne_sim = {
  maxvx = 2, -- max vx
  margn = 5, -- turn margin
  vy    = 1.5, -- charge vy
- dx    = 0,
+ --dx    = 0,
  -- fore fire
  fr    = 10, -- fire rate
  ---------------
  new = function(self,_i,_j)
-  local obj = anne_0:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   return instance(self,obj)
  end,
  ---------------
  draw = function(s)
   pals({4,5,6,14,15,7,9,10},
        {11,0,0,3,3,11,3,3})
- -- pal(4,11)
- -- pal(5,0)
- -- pal(6,0)
- -- pal(14,3)
- -- pal(15,3)
-  anne_0.draw(s)
- end
+  s.super.draw(s)
+ end,
+ _setblt =an_shot_down,
 }
 -------------------------------------
 anne_zk1 = {
+ super=anne_zk2,
  -- type parameters
- typ = 2,
  col = 3,  -- dgreen
  p   = 2,  -- score
  -- for fire
  fr  = 4, -- fire rate
- _setblt=anne_0._setblt,
+
+ _setblt = an_shot_down,
  ----------------------
  new = function(self,_i,_j)
-  local obj = anne_zk2:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   obj._ochg=obj._charge -- keep method
   return instance(self,obj)
  end,
@@ -515,9 +525,7 @@ anne_zk1 = {
   else
    if s.ts <= 10 then
     s.ts += 1
-    --if s.ts%3==0 then
-     an_rot_to(s,s.ta)
-    --end
+    an_rot_to(s,s.ta)
    else
     s.x += s.tx
     s.y += abs(s.tx) --s.vy --*1.5
@@ -526,36 +534,9 @@ anne_zk1 = {
  end
 }
 
-anne_zk2 = {
- typ = 3,
- col = 11, -- lgreen
- p   = 3,  -- score
- -- for mv_sin
- ax    = 0.1, -- vx step
- maxvx = 3,   -- max vx
- margn = 8,   -- turn margin
- vy    = 1.5, -- charge vy
- dx    = 0,
- -- for fire
- fi  = 10, -- interval
- fr  = 6, -- fire rate
- -----------------------
- new = function(self,_i,_j)
-  local obj = anne_0:new(_i,_j)
-  return instance(self,obj)
- end,
- -----------------------
- _setblt =function(s)
-  local v=limabs((player.x-s.x)/16,1)
-  return enemies:fire_to(
-      s.x, s.y,     -- src
-      s.x+v, s.y+3, -- dst
-      3)             -- spd/frame
- end
-}
-
 anne_zk2s = {
- col = 14,
+ super=anne_zk2,
+ col = 8, -- red
  -- for charge
  dgs = 0, -- dodge status
  dgc = 3, -- dodge counter
@@ -572,8 +553,8 @@ anne_zk2s = {
  ----------------------
  new = function(self,_i,_j)
   -- inherit from type-zk
-  local obj  = anne_zk2:new(_i,_j)
-  obj._ochg  = obj._charge
+  local obj = self.super:new(_i,_j)
+  obj._ochg = obj._charge
   return instance(self,obj)
  end,
  ----------------------
@@ -589,10 +570,6 @@ anne_zk2s = {
   d_dgs=s.dgs --debug
   d_dgc=s.dgc --debug
   s:_ochg() -- inherit
-  --print(scene.name,64,64)
-  --if scene.name=="miss" then
-  -- s.lc=3
-  --end
   local mx=player.mx
   local my=player.my
   if s.dgs != 0 then
@@ -604,7 +581,7 @@ anne_zk2s = {
     s.dgc -= 1
    end
   elseif s.dgc>0 and
-   ((s.vx>0 and abs(s.x+16-mx)<=8)
+      ((s.vx>0 and abs(s.x+16-mx)<=8)
     or (s.vx<0 and abs(s.x-mx)<=8))
    then
    s.dgs = 2*sgn(s.vx) --s.vx*2/abs(s.vx)
@@ -620,20 +597,21 @@ anne_zk2s = {
 }
 
 anne_zg={
- typ =  5,
+ super=anne_zk2,
  col = 12, -- lblue
  p   =  5, -- score
  -- for fire
  fi  =  5, -- interval
  fr  =  10,
+ fa  =  40/360,
  -------------------------------
  new = function(self,_i,_j)
-  local obj = anne_zk2:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   return instance(self,obj)
  end,
  -------------------------------
  _convoy =function(s)
-  anne_0._convoy(s)
+  s.super._convoy(s)
   s.s = 23
   s.x = -100
   s.y = -100
@@ -667,14 +645,13 @@ anne_zg={
  end,
 
  _charge =function(s)
-  anne_0._charge(s)
+  s.super._charge(s)
   s.s = 1 -- keep '-'
   if s.y<0 and s.f==2 then
    -- cancel charge-loop
    s.f =  3 -- return
    s.y =-16 -- rewind y to top
    s.c =  0 -- turn counter
-   --s.dx=  0
   end
  end,
 
@@ -691,14 +668,14 @@ anne_zg={
 }
 
 anne_gf={
+ super=anne_zk2,
  fi  = 4, -- fire interval
- typ = 6,
  col = 12, -- lblue
  p   = 4, -- score
  ax  = 0.15,
  ------------------------------
  new = function(self,_i,_j)
-  local obj = anne_zk2:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   return instance(self,obj)
  end,
  ------------------------------
@@ -733,14 +710,14 @@ anne_gf={
 }
 
 anne_ge={
- typ = 7,
+ super=anne_zk2,
  fi  = 4, -- fire interval
  p   = 5, -- score
  ax  = 0.15,
  tx  = nil, -- target-x
  -------------------------
  new = function(self,_i,_j)
-  local obj = anne_zk2:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   return instance(self,obj)
  end,
  -------------------------
@@ -768,16 +745,17 @@ anne_ge={
 }
 
 anne_dm ={
+ super=anne_gf,
  -- special init
  f  =1, -- turn-out
  vx =0, -- x speed
  lc =-2, -- loop counter
  s  =32,-- '-'(no col)
- col=13, -- purple
+ col=2, -- purple
  ace=true,
  -------------------------
  new = function(self,_i,_j,pos)
-  local obj = anne_gf:new(_i,_j)
+  local obj = self.super:new(_i,_j)
   obj._precharge = obj._charge
   obj = instance(self,obj)
   obj.pos = pos
@@ -884,7 +862,7 @@ enemies={
  en_charge=false, -- enable charge
  chg_cnt=0,
  chg_num=0,
- annedead={f=-1},
+ annedead ={f=-1},
  dummyanne={f=-2}, -- 666
  ---
  init=function(s)
@@ -938,24 +916,6 @@ enemies={
     else
      s.annes[sq] = s.dummyanne
     end
---     local a =
---        build_anne(cv[j],i,j)
---     if s.form[fm[j]][i]==1 then
---      s.anum += 1
---      a.s = 1 -- ('-')
---      a.f = 0 -- convoy
---      if stage.noc==nil then
---       -- cancel fly-in
---       a.y = -10*a.y
---       a.s = 7 -- (,-,)
---       a.f = 3 -- turn-in
---      end
---     else
---      a = s.annedead
---      --a.f=-1 -- inactive
---     end
---     s.annes[sq] = a
---     sq += 1
    end
   end
   s.bottom=#cv
@@ -1077,8 +1037,8 @@ enemies={
  ---
  fire_for=function(s,x,y,ang,spd)
   -- type 3: fire angle(0:down 0.25:right)
-  local vx = spd*sin(ang)
-  local vy = spd*cos(ang)
+  local vy = spd*sin(ang)
+  local vx = spd*cos(ang)
   return s:bullet(1,x,y,vx,vy,
            0,0,0,0)
  end,
@@ -1104,7 +1064,6 @@ enemies={
    if v<#stage.stocks then
     local j=0
     for p=i,s.bottom*6,6 do
-     dbg_p = p
      j +=1
      if s.annes[p].f>=0 then
       break
