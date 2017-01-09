@@ -77,17 +77,17 @@ function _init()
 end
 
 function _update()
- bg:update()
+ stars:update()
  scene:update()
  hud:update()
 end
 
 function _draw()
  cls()
- bg:draw()
+ stars:draw()
  scene:draw()
  hud:draw()
- debug_hud()
+ --debug_hud()
 end
 
 -----------------------------
@@ -145,7 +145,7 @@ oo={x=63.5,y=63.5}
 -- functions ----------------
 
 function limabs(_v,_w)
- return mid(-w,_v,_w)
+ return mid(-_w,_v,_w)
 end
 
 function near(v,t,m)
@@ -261,9 +261,11 @@ anne_zk2 = {
  vy    = 1.5, -- charge vy
  -- for fire
  fi  = 10, -- interval
- fr  = 6, -- fire rate
- fc  = 0,-- fi counter
- fa  = 0.05, -- trigger angle(/2)
+ fr  =  6, -- fire rate
+ fc  =  0,-- fi counter
+ fal = 0.75-(30/360),
+ far = 0.75+(30/360),
+ fa  = 3/36, -- trigger angle(/2)
  fw  = 0.1, -- fire width
  --------------------------------
  new=function(self,_i,_j)
@@ -366,6 +368,7 @@ anne_zk2 = {
   -- move
   if not nm then
    s:_chgmov()
+   s.x = mid(-8,s.x,136)
   end
   -- state change
   if s.y>128+8 then -- loopback
@@ -404,8 +407,11 @@ anne_zk2 = {
 
  _fire =function(s)
   -- fire control (random)
-  if(s.fc>0)          return
-  if(abs(0.75-get_ang(s,player))>s.fa)return
+  if(s.fc>0) return
+  if in_range(get_ang(s,player),s.fal,s.far)==false then
+   return
+  end
+--  if(abs(0.75-get_ang(s,player))>s.fa)return
   if rnd(100)<=s.fr and
      s.y<80 then
    if s:_setblt()==true then
@@ -711,8 +717,8 @@ anne_gf={
 
 anne_ge={
  super=anne_zk2,
- fi  = 4, -- fire interval
  p   = 5, -- score
+ col = 13,
  ax  = 0.15,
  tx  = nil, -- target-x
  -------------------------
@@ -1199,6 +1205,7 @@ numsco={
  reset =function(s)
   s.hi,s.lo = 0,0
   s.md=true
+  s.ext=500 --5000pts
  end,
  ---
  cmp =function(s,o)
@@ -1208,7 +1215,7 @@ numsco={
  ---
  add =function(s,p)
   if s.cs then
-   return
+   return --counter stop
   end
   s.lo+=p
   if s.lo>9999 then
@@ -1226,6 +1233,10 @@ numsco={
     s.hi=0
     s.lo=0
    end
+  end
+  if s.lo>=s.ext then
+   s.ext*=2 --5000/10000/20000/...
+   player:extend()
   end
   s.md=true
  end,
@@ -1258,6 +1269,11 @@ player={
   s.combo=1
  end,
  ---
+ extend =function(s)
+  s.rest +=1
+  sfx(6,1)
+ end,
+ ---
  update =function(s)
   if s.y>118 then -- rollout
    s.y -= (s.y-118)/2
@@ -1268,6 +1284,7 @@ player={
      then
     s.en_shot = false
     s.crush = 1
+    s.combo = 1
     sfx(3,1) -- miss
     enemies:missed()
   end
@@ -1302,7 +1319,7 @@ player={
   if s.mx>=0 then -- active
    s.my -= 4
    if s.my <= 0 then
-    score:add(-1)
+    --score:add(-1)
     s.combo = 1
     s.mx=-200 -- remove
    end
@@ -1379,11 +1396,17 @@ player={
 -- background ---------------
 
 stars={ -- bg particles
+ -- types
+ flow = 1,
+ grid = 2,
+ storm= 3,
+ spin = 4,
+ -- operations
  init =function(s) -- generate 64
   s.pts={} -- particles
   for p=1,64 do
-   s.pts[p]={x=flr(rnd(127)),
-             y=flr(rnd(140)),
+   s.pts[p]={x=rnd(127),
+             y=rnd(140),
              v=(rnd(3)+1)/2,
              f=flr(rnd(20)),
              i=8+((p-1)%8)*16,
@@ -1391,7 +1414,7 @@ stars={ -- bg particles
              m=1}
   end
   s.posy = 0 -- grid pos-x
-  s.mode = 1 -- stars
+  s.mode = s.flow -- stars
   s.sfrm = 0 -- for storm
   s.sfrv = 0 -- for storm
  end,
@@ -1401,6 +1424,9 @@ stars={ -- bg particles
  end,
 
  switchto =function(s,m)
+  if s.mode == m then
+   return
+  end
   s.mode = m
   for p in all(s.pts) do
    p.m = m
@@ -1414,6 +1440,7 @@ stars={ -- bg particles
    s.sfrv = 1
   end
  end,
+
  update =function(s)
   -- grid position
   s.posy +=1
@@ -1456,8 +1483,6 @@ stars={ -- bg particles
     p.x = oo.x+sin(p.a)*p.l
     p.y = oo.y+cos(p.a)*p.l
     if not in_field(p) then
-     --(0.25-a%0.25)*2
-     --p.a += abs(p.a%0.25)
      p.a += 0.5-(p.a*2%0.5)
     end
     if p.a>1 then
@@ -1471,6 +1496,11 @@ stars={ -- bg particles
   if s.mode==3 and 
      flr(rnd(151-s.sfrm))==0 then
    cls(1)
+   if s.sfrm>120 then
+    camera(flr(rnd(3))-2,0)
+   else -- delay charge
+    enemies.chg_cnt+=1
+   end
   end
   for i,p in pairs(s.pts) do
    if p.m==1 or p.m==4 then
@@ -1489,70 +1519,6 @@ stars={ -- bg particles
    end
   end
  end
-}
-
-backs={
- stars={
-  name="stars",
-  ---
-  new =function(s)
-   stars:switchto(1)
-   return s
-  end,
-  update =function(s)
-   stars:update()
-  end,
-  draw =function(s)
-   stars:draw()
-  end,
- },
- training={
-  name="training",
-  ---
-  new =function(s)
-   stars:switchto(2)
-   return s
-  end,
-  update =function(s)
-   stars:update()
-  end,
-  draw =function(s)
-   stars:draw()
-  end
- },
- storm={
-  name="storm",
-  ---
-  new =function(s)
-   stars:switchto(3)
-   return s
-  end,
-  update =function(s)
-   stars:update()
-  end,
-  draw =function(s)
-   stars:draw()
-   if stars.sfrm>120 then
-    camera(flr(rnd(3))-2,0)
-   else -- delay charge
-    enemies.chg_cnt+=1
-   end
-  end
- },
- spin={
-  name="spin",
-  ---
-  new =function(s)
-   stars:switchto(4)
-   return s
-  end,
-  update =function(s)
-   stars:update()
-  end,
-  draw =function(s)
-   stars:draw()
-  end
- }
 }
 
 -----------------------------
@@ -1629,6 +1595,11 @@ hud={
  console =function(s,str,x,y,sec)
   s.types[1]=
     typestr:new(str,x,y,sec,true,11)
+ end,
+ ---
+ warning =function(s)
+  s.types[2]=
+    typestr:new("warning",-1,70,1.5,false,8)
  end
 }
 
@@ -1640,7 +1611,8 @@ function append_zk2s()
  a.x = 127-player.x
  a.y = 140
  enemies:append(a,1)
- music(8)
+ hud:warning()
+ --music(8)
 end
 
 function append_dms()
@@ -1650,7 +1622,8 @@ function append_dms()
   enemies:append(a,i)
   a.gaia = enemies.annes[1]
  end
- music(8)
+ hud:warning()
+ --music(8)
 end
 
 stages={
@@ -1660,7 +1633,7 @@ stages={
   types={1,1 }, -- type/line
   forms={2,1 }, -- form/line
   charge=90, -- charge interval init
-  back=backs.training,
+  back=stars.grid,
   trn=1, -- noiz transition
   nxt=3
  },  
@@ -1668,37 +1641,30 @@ stages={
   types={3,3}, -- type/line
   forms={2,1}, -- form/line
   charge=60, -- charge interval init
-  back = backs.stars,
+  back=stars.flow, --backs.stars,
   trn=1, -- noiz transition
   nxt=4,
-  entry =function(s)
-   --music(3,2000) -- warp in
-  end,
  },
  { str="stage 2", sub="evaluate",
   types={6,3,3},
   forms={4,1,1},
   charge=60, -- charge interval init
-  back = backs.spin,
   --back = backs.stars,
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
-     --player.kills>=15 then
-     player.kills>=1 then
+     player.kills>=5 then
      append_zk2s()
      s.scnt+=1
-     --append_dms()
-     --s.scnt+=3
    end
   end,
   nxt=5
  },
- { str="stage 3", sub="feed-forward",
+ { str="stage 3", sub="shortcut",
   types={5,5,5 },
   forms={6,5,6 },
   charge=40, -- charge interval init
-  back = backs.storm,
+  back=stars.storm,
   entry =function(s)
    music(0) -- warp in
   end,
@@ -1713,19 +1679,34 @@ stages={
   end,
   nxt=6
  },
- { str="stage 4",
-  types={6,3,2 },
+ { str="stage 4", sub="cascades",
+  types={6,3,3 },
   forms={2,1,1 },
-  stocks={2,2,2},
+  stocks={2,2},
   charge=50, -- charge interval init
-  back = backs.stars,
+  back=stars.flow,
   nxt=7
+ },
+ { str="stage 5", sub="newtype",
+  types={7,7 },
+  forms={2,1 },
+  charge=50, -- charge interval init
+  back=stars.flow,
+  special =function(s)
+   if enemies.anum==0 and
+      s.scnt==0 and
+     player.kills>=5 then
+     append_dms()
+     s.scnt+=3
+   end
+  end,
+  nxt=8
  },
  { str="stage 6", sub="spars",
   types={6,6,7,2,2 },
   forms={6,5,6,5,6 },
+  stocks={7,7},
   charge=50, -- charge interval init
-  back = backs.stars,
   clear =function(s)
    stars.sfrv=-1
    if stars.sfrm>0 then
@@ -1749,7 +1730,7 @@ scenes={
   ---
   new =function(s)
    stars:init()
-   bg = backs.stars:new()
+   --bg = backs.stars:new()
    player:init()
    enemies:init()
    stage=stages[1]
@@ -1791,9 +1772,11 @@ scenes={
     sfx(5,0) -- begin
     s.reset = true
    end
-   if stage.back!=nil and
-      stage.back.name != bg.name then
-    bg = stage.back:new()
+--   if stage.back!=nil and
+--      stage.back.name != bg.name then
+   if stage.back!=nil then
+    stars:switchto(stage.back)
+    --bg = stage.back:new()
    end
    if stage.special!=nil then
     stage.scnt=0
@@ -1817,7 +1800,7 @@ scenes={
    enemies:draw()
    if s.reset and -- new stage 
       stage.trn==1 and -- noiz
-      s.timer<5 then -- 1/65sec
+      s.timer<10 then -- 1/3sec
     --sfx(8,1)
     for i=0,128*128-1 do
      if rnd(5)<=2 then
@@ -1950,7 +1933,7 @@ scenes={
    ---
    draw =function(s)
     enemies:draw()
-    print("game over", 48,64)
+    print("game over", 48,64,7)
    end
  },
 
@@ -2150,7 +2133,7 @@ __sfx__
 000900000160001610036200261003610046000362004610076200562007620086200a6200c62010630106401863019640216601f65027670286702f67035660356703e6703e6703e6703f6503e6703767024670
 000500200d670346703c6703f6703e6603f6603f6603f6603f6603e6603a6503965037650336502f6502b64026640206401964018640126300d63007630026300a62001620066200162003610036100161002610
 001000060b630086300a630096300a630086300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000e000023070230702307023070230702307023070230702307023070230702307023070230702307023070230702307023070210701f070210701f0701d070210701f0701d070210701f0701d0702107023070
+000e000027070230002707023000270702300027070230002300023000230002700023000230002300023000230002300026000210001f000210001f0001d000210001f0001d000210001f0001d0002100023000
 001400001072200703246131f00010722000001861300000107220000024613000001072200000186130000010722000002461300000107220000018613000001072200000246130000010722000031272218613
 001400000c0001032510403130071332500000000001032500000103250030000000133250030000500103250e000103250e335103250c000133250c0000e3250c000153250c000133250c0000e0000e32512335
 001400001372200104246130010413722001001861300100137220010024613001001372218613157222461315722007041861300704157220070424613007041572200704186130070415722246131372200004
