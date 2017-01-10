@@ -12,29 +12,37 @@ t_dnce={ -- dance frames
        {x=1, y=-1,s=1},-- 2
        {x=0, y=0, s=2},-- 3
        {x=-1,y=-1,s=1}}-- 4
-t_sprite={ -- id,hflip,vflip,colligionrect
+
+t_coll={ -- collision pattern
+ {-3,-3,4,4},-- annes
+ {-3,-3,3,4},-- ship
+ {-1,-4,1,1},-- enemies bullet |
+ {-1,-1,1,1},-- enemies bullet *
+ {-1, 0,1,4}}-- players missile
+
+t_sprite={ -- id,hflip,vflip,collisionrect
 -- no l<->r u<->d
  -- in convoy
- {  6, 7, 4, 0,c={-3,-3,4,4}},-- ('-') stay 1
- {  0, 7, 4, 0,c={-3,-3,4,4}},-- |'-'| stay 2
+ {  6, 7, 4, 0,c=1},-- ('-') stay 1
+ {  0, 7, 4, 0,c=1},-- |'-'| stay 2
  -- rotation 360/22.5
- { 70,10, 7, 0,c={-3,-3,4,4}},-- 3( =   90' fly
- { 64,10, 6, 0,c={-3,-3,4,4}},-- 4/'-'/ 67'
- { 38, 9, 5, 0,c={-3,-3,4,4}},-- 5/'-'/ 45'
- { 32, 7, 4, 0,c={-3,-3,4,4}},-- 6/'-'/ 22'
- {  6, 7, 4, 0,c={-3,-3,4,4}},-- 7|'-'|
- { 32, 7, 4, 2,c={-3,-3,4,4}},-- 8\'-'\ -22'
- { 38, 5, 5, 2,c={-3,-3,4,4}},-- 9\'-'\ -45'
- { 64, 4, 6, 2,c={-3,-3,4,4}},--10\'-'\ -67'
- { 70, 4, 7, 2,c={-3,-3,4,4}},--11 = )
- { 64, 4, 8, 3,c={-3,-3,4,4}},--12/,-,/ 
- { 38, 5, 9, 3,c={-3,-3,4,4}},--13/,-,/ -135'
- { 32, 7,10, 3,c={-3,-3,4,4}},--14/,-,/
- {  6, 7,10, 3,c={-3,-3,4,4}},--15|,-,| 180'
- { 32, 7,10, 1,c={-3,-3,4,4}},--16\,-,\ 
- { 38, 9, 9, 1,c={-3,-3,4,4}},--17\,-,\ 135' 
- { 64,10, 8, 1,c={-3,-3,4,4}},--18\,-,\ 
- { 70,10, 7, 0,c={-3,-3,4,4}},--19 ( =  90' fly
+ { 70,10, 7, 0,c=1},-- 3( =   90' fly
+ { 64,10, 6, 0,c=1},-- 4/'-'/ 67'
+ { 38, 9, 5, 0,c=1},-- 5/'-'/ 45'
+ { 32, 7, 4, 0,c=1},-- 6/'-'/ 22'
+ {  6, 7, 4, 0,c=1},-- 7|'-'|
+ { 32, 7, 4, 2,c=1},-- 8\'-'\ -22'
+ { 38, 5, 5, 2,c=1},-- 9\'-'\ -45'
+ { 64, 4, 6, 2,c=1},--10\'-'\ -67'
+ { 70, 4, 7, 2,c=1},--11 = )
+ { 64, 4, 8, 3,c=1},--12/,-,/ 
+ { 38, 5, 9, 3,c=1},--13/,-,/ -135'
+ { 32, 7,10, 3,c=1},--14/,-,/
+ {  6, 7,10, 3,c=1},--15|,-,| 180'
+ { 32, 7,10, 1,c=1},--16\,-,\ 
+ { 38, 9, 9, 1,c=1},--17\,-,\ 135' 
+ { 64,10, 8, 1,c=1},--18\,-,\ 
+ { 70,10, 7, 0,c=1},--19 ( =  90' fly
  -- deads
  {128, 7, 7, 0},-- 20 dead 1
  {130, 7, 7, 0},-- 21 dead 2
@@ -43,15 +51,15 @@ t_sprite={ -- id,hflip,vflip,colligionrect
  { 96, 7, 7, 0},-- 23 hyde
  { 44, 7, 7, 0},-- 24 ball
  -- ship
- { 14, 7,10, 0,c={-3,-3,3,4}},-- 25 ship
+ { 14, 7,10, 0,c=2},-- 25 ship
  {160, 7,10, 0},-- 26 miss1
  {162, 7,10, 0},-- 27 miss2
  {163, 7,10, 0},-- 28 miss3
  -- bullets (8x8)
- { 12, 0, 4, 0,c={-1,-4,1,1}},-- 29 bullet |
- { 28, 1, 2, 0,c={-1,-1,1,1}},-- 30 bullet *
- { 13, 0, 3, 0,c={-1,-3,1,0}},-- 31 misisle
- -- no colligion ver
+ { 12, 0, 4, 0,c=3},-- 29 bullet |
+ { 28, 1, 2, 0,c=4},-- 30 bullet *
+ { 13, 0, 3, 0,c=5},-- 31 misisle
+ -- no collision ver
  {  6, 7, 4, 0}, -- 32 |'-'|
 }
 
@@ -71,7 +79,7 @@ end
 -- application entries ------
 
 function _init()
- scene=scenes.title:new()
+ scene=scenes.title:init()
  score=numsco:new()
  hiscore=numsco:new()
 end
@@ -111,7 +119,7 @@ function debug_hud()
  line(enemies.chg_int,0,enemies.chg_int,4)
  dprint(" enum:"..enemies.anum)
  dprint(" chgn:"..enemies.chg_num)
- dprint("scene:"..scene.name)
+ --dprint("scene:"..scene.name)
  dprint(" sfrm:"..stars.sfrm)
  if d_dgs!=nil then
   dprint(" dgs:"..d_dgs)
@@ -260,7 +268,7 @@ anne_zk2 = {
  margn = 8,   -- turn margin
  vy    = 1.5, -- charge vy
  -- for fire
- fi  = 10, -- interval
+ fi  = 15, -- interval
  fr  =  6, -- fire rate
  fc  =  0,-- fi counter
  fal = 0.75-(30/360),
@@ -368,7 +376,7 @@ anne_zk2 = {
   -- move
   if not nm then
    s:_chgmov()
-   s.x = mid(-8,s.x,136)
+   s.x = mid(-9,s.x,136)
   end
   -- state change
   if s.y>128+8 then -- loopback
@@ -381,13 +389,10 @@ anne_zk2 = {
     s.y =-16 -- rewind y to top
     s.s = 15 -- 
     s.c =  0 -- turnin counter
-    --s.dx=  0
    else
     -- rewind top and x adjust
     s.y=-16
     s.x = mid(0,s.x,120)
- --   if s.x<0   then s.x=0 end
- --   if s.x>120 then s.x=120 end
    end
   end
  end,
@@ -411,7 +416,6 @@ anne_zk2 = {
   if in_range(get_ang(s,player),s.fal,s.far)==false then
    return
   end
---  if(abs(0.75-get_ang(s,player))>s.fa)return
   if rnd(100)<=s.fr and
      s.y<80 then
    if s:_setblt()==true then
@@ -444,9 +448,9 @@ anne_zk2 = {
  draw =function(s)
   pal((s.ace and 4) or 8,s.col)
   putat(s.s,s.x,s.y,flr(s.m/3))
-  if s.x<-8 then
+  if s.x<=-8 then
    spr(93,0,s.y-1) end
-  if s.x>128+8 then
+  if s.x>=127+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
   pal()
  end,
@@ -481,8 +485,8 @@ anne_sim = {
  maxvx = 2, -- max vx
  margn = 5, -- turn margin
  vy    = 1.5, -- charge vy
- --dx    = 0,
  -- fore fire
+ fi    = 10,
  fr    = 10, -- fire rate
  ---------------
  new = function(self,_i,_j)
@@ -679,6 +683,7 @@ anne_gf={
  col = 12, -- lblue
  p   = 4, -- score
  ax  = 0.15,
+ fw  = 0.15, -- fire width
  ------------------------------
  new = function(self,_i,_j)
   local obj = self.super:new(_i,_j)
@@ -836,10 +841,12 @@ function build_anne(n,i,j)
  end
 end
 
-function colligion(x1,y1,c1,x2,y2,c2)
+function collision(x1,y1,c1,x2,y2,c2)
  if c1==nil or c2==nil then
   return false
  end
+ c1 = t_coll[c1]
+ c2 = t_coll[c2]
  if x1+c1[1] <= x2+c2[3] and
     x2+c2[1] <= x1+c1[3] and
     y1+c1[2] <= y2+c2[4] and
@@ -984,7 +991,7 @@ enemies={
  hitrect=function(s,x,y,c)
   for a in all(s.annes) do
    if a.f>=0 then -- alive
-    if colligion(x,y,c,
+    if collision(x,y,c,
         a.x,a.y,t_sprite[a.s].c) then
      return a
     end
@@ -1001,7 +1008,7 @@ enemies={
   -- vs bullets
   for b in all(s.bullets) do
    if b.a then -- is active
-    if colligion(x,y,c1,
+    if collision(x,y,c1,
         b.x,b.y,t_sprite[b.t+28].c) then
      return true
     end
@@ -1013,7 +1020,7 @@ enemies={
  bullet=function(s,t,x,y,vx,vy,ax,ay,mx,my)
   for b in all(s.bullets) do
    if b.a==false then
-    b.t = t -- type(spr,colligion)
+    b.t = t -- type(spr,collision)
     b.x, b.y = x, y  -- locates
     b.vx,b.vy= vx,vy -- speeds
     b.ax,b.ay= ax,ay -- accels
@@ -1326,8 +1333,7 @@ player={
   end
   -- missile hitcheck
   if s.mx>=0 then -- active
-   local c = {-1,0,1,4}
-   local a=enemies:hitrect(s.mx,s.my,c)
+   local a=enemies:hitrect(s.mx,s.my,5)
    if a!=nil then -- hit
     s.mx=-100
     a:hit()
@@ -1339,7 +1345,6 @@ player={
  ---
  draw =function(s)
   -- ship
-  --pal(8,8)
   if s.crush == 0 then
    if s.mx<0 then
     putat(31,s.x,s.y-4,0)
@@ -1726,9 +1731,7 @@ stages={
 scenes={
 
  title={
-  name="title",
-  ---
-  new =function(s)
+  init =function(s)
    stars:init()
    --bg = backs.stars:new()
    player:init()
@@ -1745,7 +1748,7 @@ scenes={
     player:rollout()
     score:reset()
     stage=stages[2]
-    scene=scenes.stage:new()
+    scene=scenes.stage:init()
    end
   end,
   ---
@@ -1759,9 +1762,7 @@ scenes={
  },
  
  stage={ -- stage # call
-  name="stage",
-  ---
-  new =function(s)
+  init =function(s)
    s.timer=0
    s.subln=0
    s.reset=false
@@ -1772,11 +1773,8 @@ scenes={
     sfx(5,0) -- begin
     s.reset = true
    end
---   if stage.back!=nil and
---      stage.back.name != bg.name then
    if stage.back!=nil then
     stars:switchto(stage.back)
-    --bg = stage.back:new()
    end
    if stage.special!=nil then
     stage.scnt=0
@@ -1811,15 +1809,13 @@ scenes={
    color(7)
    print(stage.str,50,72)
    if s.timer==60 then
-    scene=scenes.play:new()
+    scene=scenes.play:init()
    end
   end
  },
  
  play={
-  name="play",
-  ---
-  new =function(s)
+  init =function(s)
    player.en_shot    = true
    enemies.en_charge = true
    -- missile,bullet init
@@ -1830,9 +1826,9 @@ scenes={
    player:update()
    enemies:update()
    if player:is_crush() then
-    scene=scenes.miss:new()
+    scene=scenes.miss:init()
    elseif enemies:is_clear() then
-    scene=scenes.clear:new()
+    scene=scenes.clear:init()
    end
   end,
   ---
@@ -1843,9 +1839,7 @@ scenes={
  },
 
  miss={
-   name="miss",
-   ---
-   new =function(s)
+   init =function(s)
     player.en_shot    = false
     enemies.en_charge = false
     s.timer=0
@@ -1860,13 +1854,13 @@ scenes={
        enemies:is_idle() and
        s.timer > 60 then
      if player:is_empty() then
-      scene = scenes.over:new()
+      scene = scenes.over:init()
      else
       player:rollout()
       if enemies:is_clear() then
-       scene = scenes.clear:new()
+       scene = scenes.clear:init()
       else
-       scene = scenes.stage:new()
+       scene = scenes.stage:init()
       end
      end
     end
@@ -1879,9 +1873,7 @@ scenes={
  },
 
  clear={
-  name="clear",
-  ---
-  new =function(s)
+  init =function(s)
    s.timer = 0
    return s
   end,
@@ -1893,11 +1885,11 @@ scenes={
    if player:is_idle() and
       enemies:is_idle() then
     if stage.nxt==nil then
-     scene =scenes.complete:new()
+     scene =scenes.complete:init()
     elseif s.timer>30 then
      -- to nextstage
      stage =stages[stage.nxt]
-     scene =scenes.stage:new()
+     scene =scenes.stage:init()
      if stage.entry then
       stage:entry()
      end
@@ -1917,9 +1909,7 @@ scenes={
  },
 
  over={
-   name="over",
-   ---
-   new =function(s)
+   init =function(s)
     return s
    end,
    ---
@@ -1927,7 +1917,7 @@ scenes={
     music(-1)
     enemies:update()
     if btn(5) then
-     scene = scenes.title:new()
+     scene = scenes.title:init()
     end
    end,
    ---
@@ -1938,15 +1928,13 @@ scenes={
  },
 
  complete={
-  name="complete",
-  ---
-  new =function(s)
+  init =function(s)
    return s
   end,
   update =function(s)
    --endanim
    if btn(5) then
-    scene = scenes.title:new()
+    scene = scenes.title:init()
    end
   end,
   ---
