@@ -677,6 +677,16 @@ anne_zg={
  end,
 }
 
+anne_gg={
+ super2=anne_zg,
+ col = 9,
+ -------------------------------
+ new = function(self,_i,_j)
+  local obj = self.super2:new(_i,_j)
+  return instance(self,obj)
+ end,
+}
+
 anne_gf={
  super=anne_zk2,
  fi  = 4, -- fire interval
@@ -832,6 +842,7 @@ anne_types={
   anne_gf,  -- 6
   anne_ge,  -- 7
   anne_dm,  -- 8 ace
+  anne_gg,  -- 9
 }
 
 function build_anne(n,i,j)
@@ -1631,6 +1642,16 @@ function append_dms()
  --music(8)
 end
 
+function storm_clear(s)
+ if stars.sfrv>=0 then
+  music(2) -- warp out
+  stars.sfrv=-1
+ end
+ if stars.sfrm>0 then
+  return false end
+ return true
+end
+
 stages={
  { -- [1]title screen
  },
@@ -1640,7 +1661,7 @@ stages={
   charge=90, -- charge interval init
   back=stars.grid,
   trn=1, -- noiz transition
-  nxt=3
+  nxt=8 --3
  },  
  { str="stage 1", sub="encount",
   types={3,3}, -- type/line
@@ -1673,15 +1694,7 @@ stages={
   entry =function(s)
    music(0) -- warp in
   end,
-  clear =function(s)
-   if stars.sfrv>=0 then
-    music(2) -- warp out
-    stars.sfrv=-1
-   end
-   if stars.sfrm>0 then
-    return false end
-   return true
-  end,
+  clear =storm_clear,
   nxt=6
  },
  { str="stage 4", sub="cascades",
@@ -1707,7 +1720,18 @@ stages={
   end,
   nxt=8
  },
- { str="stage 6", sub="spars",
+ { str="stage 6", sub="shortcut",
+  types={9 },
+  forms={1 },
+  charge=40, -- charge interval init
+  back=stars.storm,
+  entry =function(s)
+   music(0) -- warp in
+  end,
+  clear =storm_clear,
+  nxt=9
+ },
+ { str="stage 7", sub="spars",
   types={6,6,7,2,2 },
   forms={6,5,6,5,6 },
   stocks={7,7},
