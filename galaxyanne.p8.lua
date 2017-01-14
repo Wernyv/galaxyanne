@@ -126,7 +126,7 @@ function debug_hud()
   dprint(" dgc:"..d_dgc)
  end
  for b in all(enemies.bullets) do
-  if b.a==true then
+  if b.act then
    dprint("bullet:x "..b.x)
    dprint("bullet:y "..b.y)
    break
@@ -227,10 +227,10 @@ function an_rot_p(s)
 end
 
 -- shot methods --------------
-function an_shot_down(s)
-  return enemies:fire_for(
-         s.x,s.y, 0.75, 3)
-end
+--function an_shot_down(s)
+--  return enemies:fire_for(
+--         s.x,s.y, 0.75, 3)
+--end
 
 function an_shot_rnd(s)
  local a=get_ang(s,player)+rnd(s.fw)-(s.fw/2)
@@ -271,8 +271,8 @@ anne_zk2 = {
  fi  = 15, -- interval
  fr  =  6, -- fire rate
  fc  =  0,-- fi counter
- fal = 0.75-(30/360),
- far = 0.75+(30/360),
+ --fal = 0.75-(30/360),
+ --far = 0.75+(30/360),
  fa  = 3/36, -- trigger angle(/2)
  fw  = 0.1, -- fire width
  --------------------------------
@@ -323,7 +323,8 @@ anne_zk2 = {
   -- dance frame per i 
   local d=t_dnce[enemies.dance[s.i]]
   local wx=enemies.rests[s.j][s.i].x+d.x
-           +flr(enemies.x)
+           +enemies.x
+           -- +flr(enemies.x)
   local wy=enemies.rests[s.j][s.i].y+d.y
   local ps=d.s
   if stage.stocks!=nil and
@@ -336,9 +337,9 @@ anne_zk2 = {
   s.y=wy
   s.s=d.s
   -- judge to charge
-  if enemies.en_charge==true then
+  if enemies.en_charge then
    local go = false
-   if enemies:exist(s.i,s.j-1)==false 
+   if not enemies:exist(s.i,s.j-1) 
     and enemies.chg_cnt==0 
     and flr(rnd(5))==3 -- 1/5
     then
@@ -354,12 +355,16 @@ anne_zk2 = {
   if s.c%2==0 then
    if s.i <= 3 then -- leftside
     s.s = an_rot_l(s.s)
-    s.x -= 4-flr(abs(12-s.c)/3)
-    s.y -= flr((12-s.c)/2)
+    s.x -= 4-abs(12-s.c)/3
+    --s.x -= 4-flr(abs(12-s.c)/3)
+    s.y -= (12-s.c)/2
+    --s.y -= flr((12-s.c)/2)
    else
     s.s = an_rot_r(s.s)
-    s.x += 4-flr(abs(12-s.c)/3)
-    s.y -= flr((12-s.c)/2)
+    s.x += 4-abs(12-s.c)/3
+    --s.x += 4-flr(abs(12-s.c)/3)
+    s.y -= (12-s.c)/2
+    --s.y -= flr((12-s.c)/2)
    end
   end
   -- charge ?
@@ -384,7 +389,7 @@ anne_zk2 = {
    if s.lc>=3 then -- 3 loops
     s.f=-1 -- escaped
    elseif enemies.anum>4 or 
-          enemies.en_charge==false then
+          not enemies.en_charge then
     s.f =  3 -- return
     s.y =-16 -- rewind y to top
     s.s = 15 -- 
@@ -413,12 +418,13 @@ anne_zk2 = {
  _fire =function(s)
   -- fire control (random)
   if(s.fc>0) return
-  if in_range(get_ang(s,player),s.fal,s.far)==false then
+  if not in_range(get_ang(s,player),
+      0.75-s.fa,0.75+s.fa) then
    return
   end
   if rnd(100)<=s.fr and
      s.y<80 then
-   if s:_setblt()==true then
+   if s:_setblt() then
     s.fc=s.fi
    end
   end
@@ -429,7 +435,8 @@ anne_zk2 = {
 
  _turnin =function(s)
   local rpos=enemies:restpos(s.i,s.j)
-  s.x=rpos.x+flr(enemies.x)
+  s.x=rpos.x+enemies.x
+  --s.x=rpos.x+flr(enemies.x)
   s.y+=2
   if s.y>rpos.y-14 then
    if s.i<=3 then -- left
@@ -488,6 +495,7 @@ anne_sim = {
  -- fore fire
  fi    = 10,
  fr    = 10, -- fire rate
+ fw    = 0,
  ---------------
  new = function(self,_i,_j)
   local obj = self.super:new(_i,_j)
@@ -499,7 +507,8 @@ anne_sim = {
        {11,0,0,3,3,11,3,3})
   s.super.draw(s)
  end,
- _setblt =an_shot_down,
+ _setblt =an_shot_rnd,
+ --_setblt =an_shot_down,
 }
 -------------------------------------
 anne_zk1 = {
@@ -509,8 +518,10 @@ anne_zk1 = {
  p   = 2,  -- score
  -- for fire
  fr  = 4, -- fire rate
+ fw  = 0,
 
- _setblt = an_shot_down,
+ _setblt = an_shot_rnd,
+ --_setblt = an_shot_down,
  ----------------------
  new = function(self,_i,_j)
   local obj = self.super:new(_i,_j)
@@ -523,7 +534,7 @@ anne_zk1 = {
    s.ts = false
   end
   s:_ochg(s.ts)
-  if s.ts==false then
+  if not s.ts then
    local dd=abs(player.x-s.x)/
             abs(player.y-s.y)
    if in_field(s) and
@@ -685,6 +696,16 @@ anne_gg={
   local obj = self.super2:new(_i,_j)
   return instance(self,obj)
  end,
+ _charge =function(s)
+  s.super2._charge(s)
+  if s.y>120 and
+   enemies.en_charge then
+   s.vy = -4
+  elseif s.y<40 and 
+         s.vy<1.5 then
+   s.vy += 0.5
+  end
+ end,
 }
 
 anne_gf={
@@ -723,7 +744,7 @@ anne_gf={
   -- fire control (random)
   if(s.fc>0 or s.y>80) return
   if abs(s.vx)<=0.6 then
-   if s:_setblt()==true then
+   if s:_setblt() then
     s.fc=s.fi
    end
   end
@@ -798,7 +819,8 @@ anne_dm ={
   s.f = 2 --> charge
   s.s = 15 -- ,-,
   if s.pos==1 then
-   s.x = 64-30+flr(rnd(60))
+   s.x = 64-30+rnd(60)
+   --s.x = 64-30+flr(rnd(60))
   else
    s.x = s.gaia.x
   end
@@ -907,7 +929,7 @@ enemies={
                  vx=0,vy=0,
                  ac=0,ay=0,
                  mx=0,my=0,
-                 a=false}
+                 r=nil,a=false}
   end
   s.anum = 0
  end,
@@ -1018,7 +1040,7 @@ enemies={
   end
   -- vs bullets
   for b in all(s.bullets) do
-   if b.a then -- is active
+   if b.act then -- is active
     if collision(x,y,c1,
         b.x,b.y,t_sprite[b.t+28].c) then
      return true
@@ -1030,13 +1052,13 @@ enemies={
  ---
  bullet=function(s,t,x,y,vx,vy,ax,ay,mx,my)
   for b in all(s.bullets) do
-   if b.a==false then
+   if not b.act then
     b.t = t -- type(spr,collision)
     b.x, b.y = x, y  -- locates
     b.vx,b.vy= vx,vy -- speeds
     b.ax,b.ay= ax,ay -- accels
     b.mx,b.my= mx,my -- max-speeds
-    b.a=true -- is active
+    b.act=true -- is active
     return true
    end
   end
@@ -1151,13 +1173,13 @@ enemies={
   s.pmissed=false
   -- update all bullets
   for b in all(s.bullets) do
-   if b.a==true then -- is active
+   if b.act then -- is active
     b.x+=b.vx
     b.y+=b.vy
     b.vx += b.ax
     b.vy += b.ay
     if not in_field(b) then
-     b.a=false -- deactive
+     b.act=false -- deactive
     end
    end
   end
@@ -1176,7 +1198,7 @@ enemies={
  draw=function(s)
   -- bullets
   for b in all(s.bullets) do
-   if b.a==true then -- active
+   if b.act then -- active
     putat(28+b.t, b.x,b.y,0)
    end
   end
@@ -1196,14 +1218,14 @@ enemies={
  is_idle =function(s)
   local active = false
   for b in all(s.bullets) do
-   if b.a==true then
+   if b.act then
     active=true
     break
    end
   end
   return (s.anum==0 or
          s.chg_num==0) and
-         active==false
+         not active
  end
 }
 
@@ -1513,7 +1535,8 @@ stars={ -- bg particles
      flr(rnd(151-s.sfrm))==0 then
    cls(1)
    if s.sfrm>120 then
-    camera(flr(rnd(3))-2,0)
+    camera(rnd(3)-2,0)
+    --camera(flr(rnd(3))-2,0)
    else -- delay charge
     enemies.chg_cnt+=1
    end
@@ -1522,7 +1545,8 @@ stars={ -- bg particles
    if p.m==1 or p.m==4 then
     color(6)
     if p.f<10 then
-     pset(p.x,flr(p.y)) end
+     pset(p.x,p.y) end
+     --pset(p.x,flr(p.y)) end
    elseif p.m==2 then
     color(3)
     pset(p.i,(s.posy+p.j)%128)
@@ -1925,7 +1949,7 @@ scenes={
    player:draw()
    enemies:draw() -- bullets
    if stage.clear!=nil then
-    if stage:clear()==false then
+    if not stage:clear() then
      s.timer -=1
     end
    end
