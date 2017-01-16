@@ -43,37 +43,45 @@ t_sprite={ -- id,hflip,vflip,collisionrect
  { 38, 9, 9, 1,c=1},--17\,-,\ 135' 
  { 64,10, 8, 1,c=1},--18\,-,\ 
  { 70,10, 7, 0,c=1},--19 ( =  90' fly
- -- deads
- {128, 7, 7, 0},-- 20 dead 1
- {130, 7, 7, 0},-- 21 dead 2
- {132, 7, 7, 0},-- 22 dead 3
- -- special
- { 96, 7, 7, 0},-- 23 hyde
- { 44, 7, 7, 0},-- 24 ball
- -- ship
- { 14, 7,10, 0,c=2},-- 25 ship
- {160, 7,10, 0},-- 26 miss1
- {162, 7,10, 0},-- 27 miss2
- {163, 7,10, 0},-- 28 miss3
- -- bullets (8x8)
- { 12, 0, 4, 0,c=3},-- 29 bullet |
- { 28, 1, 2, 0,c=4},-- 30 bullet *
- { 13, 0, 3, 0,c=5},-- 31 misisle
  -- no collision ver
- {  6, 7, 4, 0}, -- 32 |'-'|
+ {  6, 7, 4, 0}, -- 20 |'-'|
+ -- special
+ { 96, 7, 7, 0},-- 21 24 hyde
+ { 44, 7, 7, 0},-- 22 25 ball
+ -- deads
+ {128, 7, 7, 0},-- 23 21 dead 1
+ {130, 7, 7, 0},-- 24 22 dead 2
+ {132, 7, 7, 0},-- 25 23 dead 3
+ -- ship
+ { 14, 7,10, 0,c=2},-- 26 ship
+ {160, 7,10, 0},-- 27 miss1
+ {162, 7,10, 0},-- 28 miss2
+ {163, 7,10, 0},-- 29 miss3
+ -- bullets (8x8)
+ { 12, 0, 4, 0,c=3},-- 30 bullet |
+ { 28, 1, 2, 0,c=4},-- 31 bullet *
+ { 13, 0, 3, 0,c=5},-- 32 misisle
+ { -1, 8,13, 0,c=2},-- 33 bubble
+ { 46, 7,10, 0,c=2},-- 34 ship(p)
 }
 
 function putat(id,x,y,blink)
  local st = t_sprite[id]
  local sp = st[1]
- local sz = 2 -- 16x16
- if blink>0 and fget(sp,2) then
-  sp += blink*2
+ if sp>=0 then -- sprite
+  local sz = 2 -- 16x16
+  if blink>0 and fget(sp,2) then
+   sp += blink*2
+  end
+  if fget(sp,0) then
+   sz = 1
+  end
+  spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
+ else
+  --dbg_r = st[2]
+  --assert(false)
+  circ(x,y,st[2],st[3])
  end
- if fget(sp,0) then
-  sz = 1
- end
- spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
 end
 -----------------------------
 -- application entries ------
@@ -95,7 +103,7 @@ function _draw()
  stars:draw()
  scene:draw()
  hud:draw()
- --debug_hud()
+ debug_hud()
 end
 
 -----------------------------
@@ -121,6 +129,9 @@ function debug_hud()
  dprint(" chgn:"..enemies.chg_num)
  --dprint("scene:"..scene.name)
  dprint(" sfrm:"..stars.sfrm)
+ if player.para!=nil then
+  dprint(" para:"..player.para)
+ end
  if d_dgs!=nil then
   dprint(" dgs:"..d_dgs)
   dprint(" dgc:"..d_dgc)
@@ -169,6 +180,10 @@ function get_ang(from,to)
  local dx = to.x-from.x
  local dy = to.y-from.y
  return atan2(dx,dy)
+end
+
+function get_dist(x1,y1,x2,y2)
+ return sqrt((x1-x2)^2+(y1-y2)^2)
 end
 
 function in_field(o)
@@ -311,7 +326,7 @@ anne_zk2 = {
     enemies:returned()
    end 
   elseif s.f==4 then -- dead
-   s.s = 20 + flr(s.c/2)
+   s.s = 23 + flr(s.c/2)
    s.c += 1
    if s.c == 6 then
     enemies:dead(s)
@@ -329,8 +344,8 @@ anne_zk2 = {
   local ps=d.s
   if stage.stocks!=nil and
    abs(s.y-wy)>2 then
-   s.y+=sgn(wy-s.y)*2
-   s.s=24
+   s.y+=2 --sgn(wy-s.y)*2
+   s.s=22
    return
   end
   s.x=wx
@@ -633,7 +648,7 @@ anne_zg={
  -------------------------------
  _convoy =function(s)
   s.super._convoy(s)
-  s.s = 23
+  s.s = 24
   s.x = -100
   s.y = -100
   s.sqc = 0 -- sequence cnt
@@ -656,9 +671,9 @@ anne_zg={
    s.fc=0 -- ready to fire
   end
   if s.sqc<25 then
-   s.s = 23 -- "
+   s.s = 21 -- "
   elseif s.sqc<32 then
-   s.s = 24 -- (_)
+   s.s = 22 -- (_)
   else
    s.s = 2
   end
@@ -691,19 +706,27 @@ anne_zg={
 anne_gg={
  super2=anne_zg,
  col = 9,
+ fi = 30,
+ fr = 5,
  -------------------------------
  new = function(self,_i,_j)
   local obj = self.super2:new(_i,_j)
+--  obj.ba = enemies:fire_for(
+--   obj.x,obj.y,0,0,4)
   return instance(self,obj)
  end,
  _charge =function(s)
   s.super2._charge(s)
+--  s.ba.x,s.ba.y=s.x,s.y
   if s.y>120 and
    enemies.en_charge then
    s.vy = -4
   elseif s.y<40 and 
          s.vy<1.5 then
    s.vy += 0.5
+  end
+  if s.vy==0 then
+   enemies:fire_for(s.x,s.y,0.75,1,4)
   end
  end,
 }
@@ -1041,10 +1064,14 @@ enemies={
   -- vs bullets
   for b in all(s.bullets) do
    if b.act then -- is active
-    if collision(x,y,c1,
-        b.x,b.y,t_sprite[b.t+28].c) then
-     return true
-    end
+    local sp = t_sprite[b.t+29]
+    if b.t == 4 then -- barrier
+     player:barrier(b.x,b.y,sp[2])
+    else
+     if collision(x,y,c1,b.x,b.y,sp.c) then
+      return true
+     end
+    end -- else
    end
   end
   return false
@@ -1059,16 +1086,15 @@ enemies={
     b.ax,b.ay= ax,ay -- accels
     b.mx,b.my= mx,my -- max-speeds
     b.act=true -- is active
-    return true
+    return b
    end
   end
-  return false -- empty
+  return nil -- empty
  end,
  ---
  fire_to=function(s,x,y,tgx,tgy,spd)
   -- type 1: no accel, straight
-  local dst = sqrt(
-         (tgx-x)^2 + (tgy-y)^2)
+  local dst = get_dist(tgx,tgy,x,y)
   return s:bullet(1,x,y,
            (tgx-x)*spd/dst,
            (tgy-y)*spd/dst,
@@ -1081,11 +1107,12 @@ enemies={
                   0,0.2,0,3)
  end,
  ---
- fire_for=function(s,x,y,ang,spd)
+ fire_for=function(s,x,y,ang,spd,typ)
+  typ = typ or 1
   -- type 3: fire angle(0:down 0.25:right)
   local vy = spd*sin(ang)
   local vx = spd*cos(ang)
-  return s:bullet(1,x,y,vx,vy,
+  return s:bullet(typ,x,y,vx,vy,
            0,0,0,0)
  end,
  ---
@@ -1199,7 +1226,7 @@ enemies={
   -- bullets
   for b in all(s.bullets) do
    if b.act then -- active
-    putat(28+b.t, b.x,b.y,0)
+    putat(29+b.t, b.x,b.y,0)
    end
   end
   -- enemies
@@ -1315,12 +1342,13 @@ player={
  end,
  ---
  update =function(s)
-  if s.y>118 then -- rollout
+  if s.y>119 then -- rollout
    s.y -= (s.y-118)/2
   end
+  s.para = max(s.para-1,0) 
   -- crush check
   if s.crush==0 and 
-     enemies:crushchk(s.x,s.y,t_sprite[25].c) 
+     enemies:crushchk(s.x,s.y,t_sprite[26].c) 
      then
     s.en_shot = false
     s.crush = 1
@@ -1329,19 +1357,16 @@ player={
     enemies:missed()
   end
   -- buttons
-  if s.crush==0 then
+  if s.crush==0 and 
+     s.para==0 then
+   local dx = 0
    if btn(0) then
-    s.x-=2
-    if s.x<5 then
-     s.x=5
-    end
+    dx = -2
    end
    if btn(1) then
-    s.x+=2
-    if s.x>122 then
-     s.x=122
-    end
+    dx = 2
    end
+   s.x = mid(5,s.x+dx,122)
   end
   if btn(5) then
    if s.en_shot  and -- enable 
@@ -1380,27 +1405,27 @@ player={
   -- ship
   if s.crush == 0 then
    if s.mx<0 then
-    putat(31,s.x,s.y-4,0)
+    putat(32,s.x,s.y-4,0)
    end
-   putat(25,s.x,s.y,0)
+   putat(s.para>0 and 34 or 26,s.x,s.y,0)
   else
    s.crush +=1 -- crush animation timer
    if s.crush<5 then
-    putat(26,s.x,s.y,0)
-    putat(20,s.x,s.y,0)
-   elseif s.crush<10 then
     putat(27,s.x,s.y,0)
-    putat(21,s.x,s.y+2,0)
+    putat(23,s.x,s.y,0)
+   elseif s.crush<10 then
+    putat(28,s.x,s.y,0)
+    putat(24,s.x,s.y+2,0)
    elseif s.crush<15 then
-    putat(28,s.x,s.y,0)
-    putat(22,s.x,s.y+4,0)
+    putat(29,s.x,s.y,0)
+    putat(25,s.x,s.y+4,0)
    elseif s.crush<20 then
-    putat(28,s.x,s.y,0)
+    putat(29,s.x,s.y,0)
    end
   end
   -- missile
   if s.mx>=0 then
-   putat(31,s.mx,s.my,0)
+   putat(32,s.mx,s.my,0)
   end
  end,
  ---
@@ -1415,6 +1440,18 @@ player={
   s.shot_release= true
   s.crush = 0 
   s.kills = 0 -- kills w/o crush
+  s.para = 0 -- paralized
+ end,
+ ---
+ barrier =function(s,x,y,r)
+  local d = get_dist(s.x,s.y,x,y)
+  if d<r+4 then
+   s.para = 15
+  end
+  d = get_dist(s.mx,s.my,x,y)
+  if d>=r and d<r+4 then
+   s.my=-200 -- erased
+  end
  end,
  ---
  is_empty =function(s)
@@ -1470,7 +1507,7 @@ stars={ -- bg particles
    p.m = m
    if m==4 then -- spin
     p.a = get_ang(oo,p)
-    p.l = sqrt((p.x-oo.x)^2+(p.y-oo.y)^2)
+    p.l = get_dist(p.x,p.y,oo.x,oo.y)
    end
   end
   if m==3 then
@@ -1760,6 +1797,7 @@ stages={
   forms={6,5,6,5,6 },
   stocks={7,7},
   charge=50, -- charge interval init
+  back=stars.flow,
   clear =function(s)
    stars.sfrv=-1
    if stars.sfrm>0 then
@@ -1803,8 +1841,8 @@ scenes={
   draw =function(s)
    map(1,0,23,40,10,1)
    print("   (rev.0.7)", 20,50)
-   putat(31,64,70-4,0)
-   putat(25,64,70,0)
+   putat(32,64,70-4,0)
+   putat(26,64,70,0)
    print("hit button to start",20,90)
   end,
  },
@@ -2015,17 +2053,17 @@ __gfx__
 00004444444440000000444444444000000044444444400000000044444440000000004444444000000000444444400000004444444400000000000000000000
 00044444444440000004444444444000000444444444400000000444f444440000000444f444440000000444f444440000044444444440000000000000000000
 00044f5f4444400000044fff4444400000044fff444440000000044f654444400000044fff44444000000445ff44444000044444444440000000000000000000
-00044e5ff5f4400000044e5ffff440000004455ffff440000000444e5ff444400000444e5ff444400000444e5ff4444000044444444440000000000000000000
-00044ffff5f4400000044ffff5f4400000044efff55440000000440ffff544400000440fffff44400000440fffff444000044e4444e440000000000000000000
-000440ffffe44000000440ffffe44000000440ffffe4400008044000ff56f44008044000ff5ff44008044000ff5ff440000444ffff4440000000000000000000
-00040000ff44000000040000ff44000000040000ff440000004400000fef4400004400000fef4400004400000fe5440000004480084400000000000000000000
-00040000004400000004000000440000000400000044000004080000004444000408000000444400040800000044440000000444444000000000000000000000
-00400000004000000040000000400000004000000040000000000000044440000000000004444000000000000444400000000080080000000000000000000000
-08480000040000000848000004000000084800000400000000000000444000000000000044400000000000004440000000000000000000000000000000000000
-00400000848000000040000084800000004000008480000000000084400000000000008440000000000000844000000000000000000000000000000000000000
-00000000040000000000000004000000000000000400000000000004000000000000000400000000000000040000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000040800000000000004080000000000000408000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00044e5ff5f4400000044e5ffff440000004455ffff440000000444e5ff444400000444e5ff444400000444e5ff4444000044444444440000000003030000000
+00044ffff5f4400000044ffff5f4400000044efff55440000000440ffff544400000440fffff44400000440fffff444000044e4444e44000000b0038300b0000
+000440ffffe44000000440ffffe44000000440ffffe4400008044000ff56f44008044000ff5ff44008044000ff5ff440000444ffff444000003b0038b00b3000
+00040000ff44000000040000ff44000000040000ff440000004400000fef4400004400000fef4400004400000fe54400000044800844000000b30b33b3033000
+000400000044000000040000004400000004000000440000040800000044440004080000004444000408000000444400000004444440000000b00b31b300b000
+004000000040000000400000004000000040000000400000000000000444400000000000044440000000000004444000000000800800000000b1bb3cb331b000
+084800000400000008480000040000000848000004000000000000004440000000000000444000000000000044400000000000000000000000b8bb3cb338b000
+004000008480000000400000848000000040000084800000000000844000000000000084400000000000008440000000000000000000000000b20b31b312b000
+000000000400000000000000040000000000000004000000000000040000000000000004000000000000000400000000000000000000000000bb03b0330bb000
+0000000000000000000000000000000000000000000000000000004080000000000000408000000000000040800000000000000000000000003bb03330b33000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003300000330000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000000000000000000000000000000000000
