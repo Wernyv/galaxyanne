@@ -64,6 +64,10 @@ t_sprite={ -- id,hflip,vflip,collisionrect
  { -1, 8,13, 0,c=2},-- 33 bubble
  { 46, 7,10, 0,c=2},-- 34 ship(p)
 }
+ta_boom={
+ { 10, 128, 7,7},
+ { 15, 130, 7,7},
+ { 20, 132, 7,7}}
 
 function putat(id,x,y,blink)
  local st = t_sprite[id]
@@ -82,6 +86,21 @@ function putat(id,x,y,blink)
   --assert(false)
   circ(x,y,st[2],st[3])
  end
+end
+
+function sprfr(x,y,tbl,frame)
+ if frame>=tbl[#tbl][1] then
+  return true
+ end
+ for i=1,#tbl do
+  local t=tbl[i]
+  if t[1]>frame then
+   local sz=fget(t[2],0) and 1 or 2
+   spr(t[2],x-t[3],y-t[3],sz,sz)
+   break
+  end
+ end
+ return false
 end
 -----------------------------
 -- application entries ------
@@ -103,11 +122,12 @@ function _draw()
  stars:draw()
  scene:draw()
  hud:draw()
- debug_hud()
+-- debug_hud()
 end
 
 -----------------------------
 -- debug --------------------
+--[[
 debug=true
 debug_rect=false
 
@@ -150,6 +170,7 @@ function debug_hud()
  end
  color(8)
 end
+--]]
 
 -----------------------------
 -- globals ------------------
@@ -708,6 +729,7 @@ anne_gg={
  col = 9,
  fi = 30,
  fr = 5,
+ bc = 0, -- barrier count
  -------------------------------
  new = function(self,_i,_j)
   local obj = self.super2:new(_i,_j)
@@ -717,16 +739,27 @@ anne_gg={
  end,
  _charge =function(s)
   s.super2._charge(s)
+  s.bc = max(0,s.bc-1)
 --  s.ba.x,s.ba.y=s.x,s.y
-  if s.y>120 and
+  if s.y>100 and
    enemies.en_charge then
-   s.vy = -4
-  elseif s.y<40 and 
+   s.vy,s.vx = -4,0
+  elseif s.y<30 and 
          s.vy<1.5 then
    s.vy += 0.5
   end
   if s.vy==0 then
-   enemies:fire_for(s.x,s.y,0.75,1,4)
+   local a=get_ang(s,player)
+   enemies:fire_for(s.x,s.y,
+                a,4,4)
+   s.bc=30
+  end
+ end,
+ draw =function(s)
+  s.super2.super.draw(s)
+  if s.bc==0 and s.s!=21 then
+   circ(s.x,s.y+2,10,13)
+   player:barrier(s.x,s.y,10)
   end
  end,
 }
@@ -1407,20 +1440,14 @@ player={
    if s.mx<0 then
     putat(32,s.x,s.y-4,0)
    end
-   putat(s.para>0 and 34 or 26,s.x,s.y,0)
+   putat(s.para>0 and 34 or 26,
+      s.x+s.para%2,s.y,0)
   else
    s.crush +=1 -- crush animation timer
-   if s.crush<5 then
-    putat(27,s.x,s.y,0)
-    putat(23,s.x,s.y,0)
-   elseif s.crush<10 then
-    putat(28,s.x,s.y,0)
-    putat(24,s.x,s.y+2,0)
-   elseif s.crush<15 then
-    putat(29,s.x,s.y,0)
-    putat(25,s.x,s.y+4,0)
-   elseif s.crush<20 then
-    putat(29,s.x,s.y,0)
+   --sprfr(s.x,s.y,ta_boom,s.crush)
+   if s.crush<24 then
+    putat(27+flr(s.crush/8),
+          s.x,s.y,0)
    end
   end
   -- missile
@@ -2207,7 +2234,7 @@ __sfx__
 000900000160001610036200261003610046000362004610076200562007620086200a6200c62010630106401863019640216601f65027670286702f67035660356703e6703e6703e6703f6503e6703767024670
 000500200d670346703c6703f6703e6603f6603f6603f6603f6603e6603a6503965037650336502f6502b64026640206401964018640126300d63007630026300a62001620066200162003610036100161002610
 001000060b630086300a630096300a630086300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000e000027070230002707023000270702300027070230002300023000230002700023000230002300023000230002300026000210001f000210001f0001d000210001f0001d000210001f0001d0002100023000
+00030000060700a0700a07020070280703d0703e07037070200701f070130701607010070070702300023000230002300026000210001f000210001f0001d000210001f0001d000210001f0001d0002100023000
 001400001072200703246131f00010722000001861300000107220000024613000001072200000186130000010722000002461300000107220000018613000001072200000246130000010722000031272218613
 001400000c0001032510403130071332500000000001032500000103250030000000133250030000500103250e000103250e335103250c000133250c0000e3250c000153250c000133250c0000e0000e32512335
 001400001372200104246130010413722001001861300100137220010024613001001372218613157222461315722007041861300704157220070424613007041572200704186130070415722246131372200004
