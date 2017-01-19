@@ -282,7 +282,7 @@ function an_shot_thin(s)
       3)             -- spd/frame
 end
 
-anne_zk2 = {
+an_zk2 = {
  col = 11, -- lgreen
  p   = 3,  -- score
  ----
@@ -518,8 +518,8 @@ anne_zk2 = {
 }
 
 -------------------------------------
-anne_sim = {
- super=anne_zk2,
+an_sim = {
+ super=an_zk2,
  -- type parameters
  col = 3, -- dark green
  p   = 1, -- score
@@ -547,8 +547,8 @@ anne_sim = {
  --_setblt =an_shot_down,
 }
 -------------------------------------
-anne_zk1 = {
- super=anne_zk2,
+an_zk1 = {
+ super=an_zk2,
  -- type parameters
  col = 3,  -- dgreen
  p   = 2,  -- score
@@ -591,9 +591,9 @@ anne_zk1 = {
  end
 }
 
-anne_zk2s = {
- super=anne_zk2,
- col = 8, -- red
+an_zk2s = {
+ super=an_zk2,
+ col = 14, -- pink
  -- for charge
  dgs = 0, -- dodge status
  dgc = 3, -- dodge counter
@@ -605,7 +605,7 @@ anne_zk2s = {
  c =0, -- turn counter
  lc=0, -- loop counter
  fc=0, -- ready to fire
- s =32,-- '-'(no col)
+ s =20,-- '-'(no col)
  ace =true,
  ----------------------
  new = function(self,_i,_j)
@@ -653,8 +653,8 @@ anne_zk2s = {
  end
 }
 
-anne_zg={
- super=anne_zk2,
+an_zg={
+ super=an_zk2,
  col = 12, -- lblue
  p   =  5, -- score
  -- for fire
@@ -724,8 +724,8 @@ anne_zg={
  end,
 }
 
-anne_gg={
- super2=anne_zg,
+an_gg={
+ super2=an_zg,
  col = 9,
  fi = 30,
  fr = 5,
@@ -764,8 +764,8 @@ anne_gg={
  end,
 }
 
-anne_gf={
- super=anne_zk2,
+an_gf={
+ super=an_zk2,
  fi  = 4, -- fire interval
  col = 12, -- lblue
  p   = 4, -- score
@@ -807,8 +807,8 @@ anne_gf={
  end,
 }
 
-anne_ge={
- super=anne_zk2,
+an_ge={
+ super=an_zk2,
  p   = 5, -- score
  col = 13,
  ax  = 0.15,
@@ -842,13 +842,13 @@ anne_ge={
  end,
 }
 
-anne_dm ={
- super=anne_gf,
+an_dm ={
+ super=an_gf,
  -- special init
  f  =1, -- turn-out
  vx =0, -- x speed
  lc =-2, -- loop counter
- s  =32,-- '-'(no col)
+ s  =20,-- '-'(no col)
  col=2, -- purple
  ace=true,
  -------------------------
@@ -910,26 +910,6 @@ anne_dm ={
 }
 
 -------------------------------------
-
-anne_types={
-  anne_sim, -- 1
-  anne_zk1, -- 2
-  anne_zk2, -- 3
-  anne_zk2s,-- 4 ace
-  anne_zg,  -- 5
-  anne_gf,  -- 6
-  anne_ge,  -- 7
-  anne_dm,  -- 8 ace
-  anne_gg,  -- 9
-}
-
-function build_anne(n,i,j)
- if n!=0 then
-  local p=anne_types[n]:new(i,j)
-  return p
- end
-end
-
 function collision(x1,y1,c1,x2,y2,c2)
  if c1==nil or c2==nil then
   return false
@@ -954,12 +934,6 @@ end
 
 enemies={
  ---
- form={{1,1,1,1,1,1},  -- 1
-       {0,1,1,1,1,0},  -- 2
-       {0,0,1,1,0,0},  -- 3
-       {0,1,0,0,1,0},  -- 4
-       {0,1,0,1,0,1},  -- 5
-       {1,0,1,0,1,0}}, -- 6
  anum=0,          -- anne lives
  en_charge=false, -- enable charge
  chg_cnt=0,
@@ -1012,7 +986,7 @@ enemies={
   for j=1,#cv do
    for i=1,6 do
     sq=(j-1)*6+i
-    if s.form[fm[j]][i]==1 then
+    if band(fm[j],0x40/(2^i))!=0 then
      local a = s:launch(cv[j],i,j)
      s.chg_num +=1
     else
@@ -1186,7 +1160,7 @@ enemies={
  end,
  ---
  launch=function(s,t,i,j,noc)
-  local p=anne_types[t]:new(i,j) 
+  local p=t:new(i,j) 
   s.annes[ij2idx(i,j)]=p
   s.anum += 1
   p.s,p.f = 7,3 -- (,-,),turnin
@@ -1711,7 +1685,7 @@ hud={
 -- stages -------------------
 
 function append_zk2s()
- a = anne_zk2s:new(1,1)
+ a = an_zk2s:new(1,1)
  a.x = 127-player.x
  a.y = 140
  enemies:append(a,1)
@@ -1721,7 +1695,7 @@ end
 
 function append_dms()
  for i=1,3 do
-  a = anne_dm:new(1,1,i)
+  a = an_dm:new(1,1,i)
   a.x = rnd(100)+16
   enemies:append(a,i)
   a.gaia = enemies.annes[1]
@@ -1744,24 +1718,24 @@ stages={
  { -- [1]title screen
  },
  { str="stage 0", sub="simulation",
-  types={1,1 }, -- type/line
-  forms={2,1 }, -- form/line
+  types={an_sim,an_sim }, -- type/line
+  forms={0x1e,0x3f}, -- form/line
   charge=90, -- charge interval init
   back=stars.grid,
   trn=1, -- noiz transition
-  nxt=8 --3
+  nxt=3
  },  
  { str="stage 1", sub="encount",
-  types={3,3}, -- type/line
-  forms={2,1}, -- form/line
+  types={an_zk2,an_zk2}, -- type/line
+  forms={0x1e,0x3f}, -- form/line
   charge=60, -- charge interval init
   back=stars.flow, --backs.stars,
   trn=1, -- noiz transition
   nxt=4,
  },
  { str="stage 2", sub="evaluate",
-  types={6,3,3},
-  forms={4,1,1},
+  types={an_gf,an_zk2,an_zk2},
+  forms={0x12,0x3f,0x3f},
   charge=60, -- charge interval init
   --back = backs.stars,
   special =function(s)
@@ -1775,8 +1749,8 @@ stages={
   nxt=5
  },
  { str="stage 3", sub="shortcut",
-  types={5,5,5 },
-  forms={6,5,6 },
+  types={an_zg,an_zg,an_zg },
+  forms={0x2a,0x15,0x2a},
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
@@ -1786,16 +1760,16 @@ stages={
   nxt=6
  },
  { str="stage 4", sub="cascades",
-  types={6,3,3 },
-  forms={2,1,1 },
-  stocks={2,2},
+  types={an_gf,an_zk2,an_zk2 },
+  forms={0x1e,0x3f,0x3f},
+  stocks={an_zk1,an_zk1},
   charge=50, -- charge interval init
   back=stars.flow,
   nxt=7
  },
  { str="stage 5", sub="newtype",
-  types={7,7 },
-  forms={2,1 },
+  types={an_ge,an_ge },
+  forms={0x1e,0x3f},
   charge=50, -- charge interval init
   back=stars.flow,
   special =function(s)
@@ -1809,8 +1783,8 @@ stages={
   nxt=8
  },
  { str="stage 6", sub="shortcut",
-  types={9 },
-  forms={1 },
+  types={an_gg },
+  forms={0x3f},
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
@@ -1820,9 +1794,9 @@ stages={
   nxt=9
  },
  { str="stage 7", sub="spars",
-  types={6,6,7,2,2 },
-  forms={6,5,6,5,6 },
-  stocks={7,7},
+  types={an_gf,an_gf,an_ge,an_zk1,an_zk1 },
+  forms={0x2a,0x15,0x2a,0x15,0x2a},
+  stocks={an_ge,an_ge},
   charge=50, -- charge interval init
   back=stars.flow,
   clear =function(s)
