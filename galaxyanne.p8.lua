@@ -16,8 +16,8 @@ t_dnce={ -- dance frames
 t_coll={ -- collision pattern
  {-3,-3,4,4},-- annes
  {-3,-3,3,4},-- ship
- {-1,-4,1,1},-- enemies bullet |
- {-1,-1,1,1},-- enemies bullet *
+ {-1,-4,1,1},-- enemy bullet |
+ {-1,-1,1,1},-- enemy bullet *
  {-1, 0,1,4}}-- players missile
 
 t_sprite={ -- id,hflip,vflip,collisionrect
@@ -68,6 +68,19 @@ ta_boom={
  { 10, 128, 7,7},
  { 15, 130, 7,7},
  { 20, 132, 7,7}}
+id_music={
+ warpin=0,
+ warpout=2,
+ aces=8,
+}
+id_sfx={
+ shot=0,
+ charge=1,
+ hit=2,
+ miss=3,
+ begin=5,
+ externd=6,
+}
 
 function putat(id,x,y,blink)
  local st = t_sprite[id]
@@ -82,8 +95,6 @@ function putat(id,x,y,blink)
   end
   spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
  else
-  --dbg_r = st[2]
-  --assert(false)
   circ(x,y,st[2],st[3])
  end
 end
@@ -196,7 +207,7 @@ function in_range(v,mn,mx)
  return (mn<=v and v<=mx)
 end
 
-function get_ang(from,to)
+function get_dir(from,to)
  -- right=0 up=0.25 left=0.5 
  local dx = to.x-from.x
  local dy = to.y-from.y
@@ -257,7 +268,7 @@ function an_rot_p(s)
  if(player.y > s.y)s.c+=1
  if s.c >= 5 then
   s.c=0
-  local a = get_ang(s,player)
+  local a = get_dir(s,player)
   an_rot_to(s,mid(0.55,a,0.95))
  end
 end
@@ -269,7 +280,7 @@ end
 --end
 
 function an_shot_rnd(s)
- local a=get_ang(s,player)+rnd(s.fw)-(s.fw/2)
+ local a=get_dir(s,player)+rnd(s.fw)-(s.fw/2)
  a = mid(0.75-s.fw/2, a, 0.75+s.fw/2)
  return enemies:fire_for(s.x,s.y,a,3)
 end
@@ -454,7 +465,7 @@ an_zk2 = {
  _fire =function(s)
   -- fire control (random)
   if(s.fc>0) return
-  if not in_range(get_ang(s,player),
+  if not in_range(get_dir(s,player),
       0.75-s.fa,0.75+s.fa) then
    return
   end
@@ -591,68 +602,6 @@ an_zk1 = {
  end
 }
 
-an_zk2s = {
- super=an_zk2,
- col = 14, -- pink
- -- for charge
- dgs = 0, -- dodge status
- dgc = 3, -- dodge counter
- vy  = 1.5,  -- charge vy
- fr  = 10, -- fire rate
- -- special init
- f =1, -- turn-out
- vx=0, -- x speed
- c =0, -- turn counter
- lc=0, -- loop counter
- fc=0, -- ready to fire
- s =20,-- '-'(no col)
- ace =true,
- ----------------------
- new = function(self,_i,_j)
-  -- inherit from type-zk
-  local obj = self.super:new(_i,_j)
-  obj._ochg = obj._charge
-  return instance(self,obj)
- end,
- ----------------------
- _turnout =function(s)
-  s.y -= 4
-  if s.y <= -20 then
-   s.x,s.y = 10,-20
-   s.f = 2 -- charge
-   s.s = 15 -- ,-,
-  end
- end,
- _charge =function(s)
-  d_dgs=s.dgs --debug
-  d_dgc=s.dgc --debug
-  s:_ochg() -- inherit
-  local mx=player.mx
-  local my=player.my
-  if s.dgs != 0 then
-   s.x += s.dgs --special move
-   if (mx<s.x 
-      or s.x+16<mx) 
-      and my<s.y then
-    s.dgs = 0
-    s.dgc -= 1
-   end
-  elseif s.dgc>0 and
-      ((s.vx>0 and abs(s.x+16-mx)<=8)
-    or (s.vx<0 and abs(s.x-mx)<=8))
-   then
-   s.dgs = 2*sgn(s.vx) --s.vx*2/abs(s.vx)
-  end
- end,
-
- _setblt =function(_s,_b)
-  local v=limabs((player.x-_s.x)/16,3)
-  enemies:fire_to(_s.x,_s.y,
-          player.x,player.y,
-          3,_b)
- end
-}
-
 an_zg={
  super=an_zk2,
  col = 12, -- lblue
@@ -749,7 +698,7 @@ an_gg={
    s.vy += 0.5
   end
   if s.vy==0 then
-   local a=get_ang(s,player)
+   local a=get_dir(s,player)
    enemies:fire_for(s.x,s.y,
                 a,4,4)
    s.bc=30
@@ -759,7 +708,7 @@ an_gg={
   s.super2.super.draw(s)
   if s.bc==0 and s.s!=21 then
    circ(s.x,s.y+2,10,13)
-   player:barrier(s.x,s.y,10)
+   player:barrier(s.x,s.y+2,10)
   end
  end,
 }
@@ -840,6 +789,66 @@ an_ge={
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
  end,
+}
+
+an_zk2s = {
+ super=an_zk2,
+ col = 14, -- pink
+ -- for charge
+ dgx = false, -- dodge status
+ dgc = 3, -- dodge counter
+ vy  = 1.5,  -- charge vy
+ fr  = 10, -- fire rate
+ -- special init
+ f =1, -- turn-out
+ vx=0, -- x speed
+ c =0, -- turn counter
+ lc=0, -- loop counter
+ fc=0, -- ready to fire
+ s =20,-- '-'(no col)
+ ace =true,
+ ----------------------
+ new = function(self,_i,_j)
+  -- inherit from type-zk
+  local obj = self.super:new(_i,_j)
+  obj._ochg = obj._charge
+  obj._ochgmov = obj._chgmov
+  obj.maxvx *=1.3
+  obj.ax *=2
+  return instance(self,obj)
+ end,
+ ----------------------
+ _turnout =function(s)
+  s.y -= 4
+  if s.y <= -20 then
+   s.x,s.y = 10,-20
+   s.f = 2 -- charge
+   s.s = 15 -- ,-,
+  end
+ end,
+ _chgmov =function(s)
+  s:_ochgmov() -- inherit
+  local mx=player.mx
+  local my=player.my
+  local dx=mx-s.x
+  if s.dgc>0 and 
+    not s.dgx and
+    in_range(my-s.y,10,20) and
+    abs(dx)<10 then --and
+   s.dgx = true
+   s.vx = s.maxvx * sgn(-dx)
+  end
+  if s.dgx and my<s.y then
+    s.gdx = false
+    s.dgc -=1
+  end
+ end,
+ _setblt =function(_s,_b)
+  local v=limabs((player.x-_s.x)/16,3)
+  enemies:fire_to(_s.x,_s.y,
+          player.x,player.y,
+          3,_b)
+ end
 }
 
 an_dm ={
@@ -1445,6 +1454,9 @@ player={
  end,
  ---
  barrier =function(s,x,y,r)
+  if not in_range(x,0,127) then
+   return
+  end
   local d = get_dist(s.x,s.y,x,y)
   if d<r+4 then
    s.para = 15
@@ -1507,7 +1519,7 @@ stars={ -- bg particles
   for p in all(s.pts) do
    p.m = m
    if m==4 then -- spin
-    p.a = get_ang(oo,p)
+    p.a = get_dir(oo,p)
     p.l = get_dist(p.x,p.y,oo.x,oo.y)
    end
   end
@@ -1574,7 +1586,6 @@ stars={ -- bg particles
    cls(1)
    if s.sfrm>120 then
     camera(rnd(3)-2,0)
-    --camera(flr(rnd(3))-2,0)
    else -- delay charge
     enemies.chg_cnt+=1
    end
@@ -1584,15 +1595,12 @@ stars={ -- bg particles
     color(6)
     if p.f<10 then
      pset(p.x,p.y) end
-     --pset(p.x,flr(p.y)) end
    elseif p.m==2 then
-    color(3)
-    pset(p.i,(s.posy+p.j)%128)
+    pset(p.i,(s.posy+p.j)%128,3)
    elseif p.m==3 then
-    color(13)
     if p.f<10 then
      line(p.x,p.y,
-      p.x,p.y+p.v*5*s.sfrm/150)
+      p.x,p.y+p.v*5*s.sfrm/150,13)
     end 
    end
   end
@@ -1718,16 +1726,16 @@ stages={
  { -- [1]title screen
  },
  { str="stage 0", sub="simulation",
-  types={an_sim,an_sim }, -- type/line
-  forms={0x1e,0x3f}, -- form/line
+  types={an_sim,an_sim}, 
+  forms={0x1e,0x3f},
   charge=90, -- charge interval init
   back=stars.grid,
   trn=1, -- noiz transition
   nxt=3
  },  
  { str="stage 1", sub="encount",
-  types={an_zk2,an_zk2}, -- type/line
-  forms={0x1e,0x3f}, -- form/line
+  types={an_zk2,an_zk2},
+  forms={0x1e,0x3f},
   charge=60, -- charge interval init
   back=stars.flow, --backs.stars,
   trn=1, -- noiz transition
@@ -1741,7 +1749,7 @@ stages={
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
-     player.kills>=5 then
+     player.kills>=0 then --5 then
      append_zk2s()
      s.scnt+=1
    end
@@ -1749,8 +1757,8 @@ stages={
   nxt=5
  },
  { str="stage 3", sub="shortcut",
-  types={an_zg,an_zg,an_zg },
-  forms={0x2a,0x15,0x2a},
+  types={an_gg,an_zg,an_zg,an_zg },
+  forms={0x12,0x2a,0x15,0x2a},
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
