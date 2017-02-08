@@ -68,18 +68,19 @@ ta_boom={
  { 10, 128, 7,7},
  { 15, 130, 7,7},
  { 20, 132, 7,7}}
-id_music={
+music_={
  warpin=0,
  warpout=2,
+ sydney0079=3,
  aces=8,
 }
-id_sfx={
+sfx_={
  shot=0,
  charge=1,
  hit=2,
  miss=3,
  begin=5,
- externd=6,
+ extend=6,
 }
 
 function putat(id,x,y,blink)
@@ -510,7 +511,7 @@ an_zk2 = {
  end,
 
  hit =function(s)
-  sfx(2,1) -- hit
+  sfx(sfx_.hit,1) -- hit
   local b=s.p
   if s:ischg() then -- turn in
    enemies:rew_chg() -- rewind
@@ -1019,7 +1020,7 @@ enemies={
  charged =function(s)
   s.chg_num+=1
   s.chg_cnt=s.chg_int
-  sfx(1,0)
+  sfx(sfx_.charge,0)
   s.charge_snd=true
  end,
  ---
@@ -1034,7 +1035,7 @@ enemies={
    s.chg_num-=1
    if s.chg_num==0 then
     if s.charge_snd then
-     sfx(1,0,20)
+     sfx(sfx_.charge,0,20)
      s.charge_snd=false
     end
    end
@@ -1354,7 +1355,7 @@ player={
  ---
  extend =function(s)
   s.rest +=1
-  sfx(6,1)
+  sfx(sfx_.extend,1)
  end,
  ---
  update =function(s)
@@ -1369,7 +1370,7 @@ player={
     s.en_shot = false
     s.crush = 1
     s.combo = 1
-    sfx(3,1) -- miss
+    sfx(sfx_.miss,1) -- miss
     enemies:missed()
   end
   -- buttons
@@ -1388,7 +1389,7 @@ player={
    if s.en_shot  and -- enable 
       s.shot_release and 
       s.mx<0  then -- shot
-    sfx(0,1) --shot
+    sfx(sfx_.shot,1) --shot
     s.mx=s.x
     s.my=s.y-4
     s.shot_release = false
@@ -1698,7 +1699,7 @@ function append_zk2s()
  a.y = 140
  enemies:append(a,1)
  hud:warning()
- --music(8)
+ music(music_.aces)
 end
 
 function append_dms()
@@ -1709,12 +1710,12 @@ function append_dms()
   a.gaia = enemies.annes[1]
  end
  hud:warning()
- --music(8)
+ music(music_.aces)
 end
 
 function storm_clear(s)
  if stars.sfrv>=0 then
-  music(2) -- warp out
+  music(music_.warpout) -- warp out
   stars.sfrv=-1
  end
  if stars.sfrm>0 then
@@ -1762,7 +1763,7 @@ stages={
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
-   music(0) -- warp in
+   music(music_.warpin) -- warp in
   end,
   clear =storm_clear,
   nxt=6
@@ -1796,7 +1797,7 @@ stages={
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
-   music(0) -- warp in
+   music(music_.warpin) -- warp in
   end,
   clear =storm_clear,
   nxt=9
@@ -1865,7 +1866,7 @@ scenes={
    enemies.en_charge=false
    if enemies:is_clear() then
     enemies:reset()
-    sfx(5,0) -- begin
+    sfx(sfx_.begin,0) -- begin
     s.reset = true
    end
    if stage.back!=nil then
