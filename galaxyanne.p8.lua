@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
---galaxyanne 0.7
+--galaxyanne 0.8
 --by wernyv
 
 -----------------------------
@@ -295,11 +295,8 @@ function an_shot_thin(s)
 end
 
 an_zk2 = {
- col = 11, -- lgreen
- p   = 3,  -- score
- ----
- x=0, y=0,
- vx=0,vy=0, -- xy speed for charge
+ col=11, -- lgreen
+ p=3, -- score
  f=0, -- 0:convoy
       -- 1:turn-out
       -- 2:charge
@@ -310,17 +307,18 @@ an_zk2 = {
  m=0, -- mabataki
  s=1, -- sprite id
  c=0, -- animation counter
- -- for mv_sin
- ax    = 0.1, -- vx step
- maxvx = 3,   -- max vx
- margn = 8,   -- turn margin
- vy    = 1.5, -- charge vy
+ -- for move
+ x=0, y=0,
+ vx=0,vy=1.5, -- xy speed for charge
+ ax=0.1,  -- acceleration x
+ dx=0,    -- direction vx (1 or -1)
+ maxvx=3,
+ trnvx=0, -- abs(vx) need for turn
+ mgn=8,   -- turn margin
  -- for fire
  fi  = 15, -- interval
  fr  =  6, -- fire rate
  fc  =  0,-- fi counter
- --fal = 0.75-(30/360),
- --far = 0.75+(30/360),
  fa  = 3/36, -- trigger angle(/2)
  fw  = 0.1, -- fire width
  --------------------------------
@@ -404,15 +402,11 @@ an_zk2 = {
    if s.i <= 3 then -- leftside
     s.s = an_rot_l(s.s)
     s.x -= 4-abs(12-s.c)/3
-    --s.x -= 4-flr(abs(12-s.c)/3)
     s.y -= (12-s.c)/2
-    --s.y -= flr((12-s.c)/2)
    else
     s.s = an_rot_r(s.s)
     s.x += 4-abs(12-s.c)/3
-    --s.x += 4-flr(abs(12-s.c)/3)
     s.y -= (12-s.c)/2
-    --s.y -= flr((12-s.c)/2)
    end
   end
   -- charge ?
@@ -440,6 +434,7 @@ an_zk2 = {
           not enemies.en_charge then
     s.f =  3 -- return
     s.y =-16 -- rewind y to top
+    s.dx= 0
     s.s = 15 -- 
     s.c =  0 -- turnin counter
    else
@@ -452,12 +447,13 @@ an_zk2 = {
 
  _chgmov =function(s)
   if s.y<100 then
-   if player.x+s.margn<s.x then
-    s.vx-=s.ax end
-   if s.x<player.x-s.margn then
-    s.vx+=s.ax end
+   if s.dx==0 or 
+    abs(s.vx)>=s.trnvx and
+    (s.x - player.x)*s.dx>=s.mgn then
+     s.dx = sgn(player.x - s.x)
+   end
   end
-  s.vx = limabs(s.vx,s.maxvx)
+  s.vx = limabs(s.vx+s.ax*s.dx, s.maxvx)
   s.x+=s.vx
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
@@ -484,7 +480,6 @@ an_zk2 = {
  _turnin =function(s)
   local rpos=enemies:restpos(s.i,s.j)
   s.x=rpos.x+enemies.x
-  --s.x=rpos.x+flr(enemies.x)
   s.y+=2
   if s.y>rpos.y-14 then
    if s.i<=3 then -- left
@@ -538,7 +533,7 @@ an_sim = {
  -- for mv_sin
  ax    = 0.1, -- vx accel
  maxvx = 2, -- max vx
- margn = 5, -- turn margin
+ mrn   = 5, -- turn margin
  vy    = 1.5, -- charge vy
  -- fore fire
  fi    = 10,
@@ -724,10 +719,12 @@ an_gf={
  ------------------------------
  new = function(self,_i,_j)
   local obj = self.super:new(_i,_j)
+  obj.trnvx = obj.maxvx
   return instance(self,obj)
  end,
  ------------------------------
- _chgmov =function(s)
+ --[[
+ ____chgmov =function(s)
   if s.vx==0 then
    s.ax = abs(s.ax)*sgn(player.x-s.x)
   end
@@ -745,6 +742,7 @@ an_gf={
   s.y+=s.vy
   an_rot_p(s) -- rotate to player
  end,
+]]--
 
  _fire =function(s)
   -- fire control (random)
@@ -1758,7 +1756,7 @@ stages={
   nxt=5
  },
  { str="stage 3", sub="shortcut",
-  types={an_gg,an_zg,an_zg,an_zg },
+  types={an_zg,an_zg,an_zg,an_zg },
   forms={0x12,0x2a,0x15,0x2a},
   charge=40, -- charge interval init
   back=stars.storm,
@@ -1850,10 +1848,10 @@ scenes={
   ---
   draw =function(s)
    map(1,0,23,40,10,1)
-   print("   (rev.0.7)", 20,50)
+   print("rev.0.8", 75,50)
    putat(32,64,70-4,0)
    putat(26,64,70,0)
-   print("hit button to start",20,90)
+   print("hit button to start",25,90)
   end,
  },
  
