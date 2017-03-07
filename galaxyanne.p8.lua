@@ -526,7 +526,7 @@ an_zk2 = {
 
 -------------------------------------
 an_sim = {
- super=an_zk2,
+-- super=an_zk2,
  -- type parameters
  col = 3, -- dark green
  p   = 1, -- score
@@ -541,21 +541,21 @@ an_sim = {
  fw    = 0,
  ---------------
  new = function(self,_i,_j)
-  local obj = self.super:new(_i,_j)
+  local obj = an_zk2:new(_i,_j)
   return instance(self,obj)
  end,
  ---------------
  draw = function(s)
   pals({4,5,6,14,15,7,9,10},
        {11,0,0,3,3,11,3,3})
-  s.super.draw(s)
+  an_zk2.draw(s)
  end,
  _setblt =an_shot_rnd,
  --_setblt =an_shot_down,
 }
 -------------------------------------
 an_zk1 = {
- super=an_zk2,
+-- super=an_zk2,
  -- type parameters
  col = 3,  -- dgreen
  p   = 2,  -- score
@@ -567,8 +567,8 @@ an_zk1 = {
  --_setblt = an_shot_down,
  ----------------------
  new = function(self,_i,_j)
-  local obj = self.super:new(_i,_j)
-  obj._ochg=obj._charge -- keep method
+  local obj = an_zk2:new(_i,_j)
+  --obj._ochg=obj._charge -- keep method
   return instance(self,obj)
  end,
  ----------------------
@@ -576,7 +576,7 @@ an_zk1 = {
   if s.y<80 then
    s.ts = false
   end
-  s:_ochg(s.ts)
+  an_zk2._charge(s,s.ts)
   if not s.ts then
    local dd=abs(player.x-s.x)/
             abs(player.y-s.y)
@@ -599,7 +599,7 @@ an_zk1 = {
 }
 
 an_zg={
- super=an_zk2,
+-- super=an_zk2,
  col = 12, -- lblue
  p   =  5, -- score
  -- for fire
@@ -608,12 +608,12 @@ an_zg={
  fa  =  40/360,
  -------------------------------
  new = function(self,_i,_j)
-  local obj = self.super:new(_i,_j)
+  local obj = an_zk2:new(_i,_j)
   return instance(self,obj)
  end,
  -------------------------------
  _convoy =function(s)
-  s.super._convoy(s)
+  an_zk2._convoy(s)
   s.s = 24
   s.x = -100
   s.y = -100
@@ -647,7 +647,7 @@ an_zg={
  end,
 
  _charge =function(s)
-  s.super._charge(s)
+  an_zk2._charge(s)
   s.s = 1 -- keep '-'
   if s.y<0 and s.f==2 then
    -- cancel charge-loop
@@ -670,22 +670,19 @@ an_zg={
 }
 
 an_gg={
- super2=an_zg,
+ --super2=an_zg,
  col = 9,
  fi = 30,
  fr = 5,
  bc = 0, -- barrier count
  -------------------------------
  new = function(self,_i,_j)
-  local obj = self.super2:new(_i,_j)
---  obj.ba = enemies:fire_for(
---   obj.x,obj.y,0,0,4)
+  local obj = an_zg:new(_i,_j)
   return instance(self,obj)
  end,
  _charge =function(s)
-  s.super2._charge(s)
+  an_zg._charge(s)
   s.bc = max(0,s.bc-1)
---  s.ba.x,s.ba.y=s.x,s.y
   if s.y>100 and
    enemies.en_charge then
    s.vy,s.vx = -4,0
@@ -701,7 +698,7 @@ an_gg={
   end
  end,
  draw =function(s)
-  s.super2.super.draw(s)
+  an_zk2.draw(s)
   if s.bc==0 and s.s!=21 then
    circ(s.x,s.y+2,10,13)
    player:barrier(s.x,s.y+2,10)
@@ -710,7 +707,7 @@ an_gg={
 }
 
 an_gf={
- super=an_zk2,
+-- super=an_zk2,
  fi  = 4, -- fire interval
  col = 12, -- lblue
  p   = 4, -- score
@@ -718,31 +715,10 @@ an_gf={
  fw  = 0.15, -- fire width
  ------------------------------
  new = function(self,_i,_j)
-  local obj = self.super:new(_i,_j)
+  local obj = an_zk2:new(_i,_j)
   obj.trnvx = obj.maxvx
   return instance(self,obj)
  end,
- ------------------------------
- --[[
- ____chgmov =function(s)
-  if s.vx==0 then
-   s.ax = abs(s.ax)*sgn(player.x-s.x)
-  end
-  if s.y<100 then
-   if sgn(s.x-player.x)==sgn(s.vx) and
-      abs(s.vx)>=s.maxvx then
-    s.ax *= -1
-   end
-  end
-  if s.y<100 then
-   s.vx += s.ax
-  end
-  s.vx = limabs(s.vx,s.maxvx)
-  s.x+=s.vx
-  s.y+=s.vy
-  an_rot_p(s) -- rotate to player
- end,
-]]--
 
  _fire =function(s)
   -- fire control (random)
@@ -756,14 +732,14 @@ an_gf={
 }
 
 an_ge={
- super=an_zk2,
+-- super=an_zk2,
  p   = 5, -- score
  col = 13,
  ax  = 0.15,
  tx  = nil, -- target-x
  -------------------------
  new = function(self,_i,_j)
-  local obj = self.super:new(_i,_j)
+  local obj = an_zk2:new(_i,_j)
   return instance(self,obj)
  end,
  -------------------------
@@ -791,7 +767,7 @@ an_ge={
 }
 
 an_zk2s = {
- super=an_zk2,
+-- super=an_zk2,
  col = 14, -- pink
  -- for charge
  dgx = false, -- dodge status
@@ -809,7 +785,7 @@ an_zk2s = {
  ----------------------
  new = function(self,_i,_j)
   -- inherit from type-zk
-  local obj = self.super:new(_i,_j)
+  local obj = an_zk2:new(_i,_j)
   obj._ochg = obj._charge
   obj._ochgmov = obj._chgmov
   obj.maxvx *=1.3
@@ -851,7 +827,7 @@ an_zk2s = {
 }
 
 an_dm ={
- super=an_gf,
+-- super=an_gf,
  -- special init
  f  =1, -- turn-out
  vx =0, -- x speed
@@ -861,7 +837,7 @@ an_dm ={
  ace=true,
  -------------------------
  new = function(self,_i,_j,pos)
-  local obj = self.super:new(_i,_j)
+  local obj = an_gf:new(_i,_j)
   obj._precharge = obj._charge
   obj = instance(self,obj)
   obj.pos = pos
@@ -1790,8 +1766,8 @@ stages={
   nxt=8
  },
  { str="stage 6", sub="shortcut",
-  types={an_gg },
-  forms={0x3f},
+  types={an_zg,an_gg,an_zg,an_gg },
+  forms={0x21,0x20,0x21,0x01},
   charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
