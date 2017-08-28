@@ -297,6 +297,7 @@ end
 an_zk2 = {
  col=11, -- lgreen
  p=3, -- score
+ combo=1, -- combo ratio
  f=0, -- 0:convoy
       -- 1:turn-out
       -- 2:charge
@@ -318,7 +319,7 @@ an_zk2 = {
  -- for fire
  fi  = 15, -- interval
  fr  =  6, -- fire rate
- fc  =  0,-- fi counter
+ fc  =  0, -- fi counter
  fa  = 3/36, -- trigger angle(/2)
  fw  = 0.1, -- fire width
  --------------------------------
@@ -333,6 +334,7 @@ an_zk2 = {
   if s.m>1 then
    s.m=(s.m+1)%9 --mb=2,3
   elseif flr(rnd(100))==5 then
+  -- assert(false)
    s.m=3
   end
   -- fire interval count down
@@ -357,11 +359,13 @@ an_zk2 = {
     enemies:returned()
    end 
   elseif s.f==4 then -- dead
-   s.s = 23 + flr(s.c/2)
-   s.c += 1
-   if s.c == 6 then
+   if s.c < 6 then
+    s.s = 23 + flr(s.c/2)
+    color(7)
+   else
     enemies:dead(s)
    end  
+   s.c += 1
   end
  end,
 
@@ -434,7 +438,7 @@ an_zk2 = {
           not enemies.en_charge then
     s.f =  3 -- return
     s.y =-16 -- rewind y to top
-    s.dx= 0
+    s.dx=  0
     s.s = 15 -- 
     s.c =  0 -- turnin counter
    else
@@ -503,6 +507,8 @@ an_zk2 = {
   if s.x>=127+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
   pal()
+  if s.combo>1 then
+   print("x"..s.combo,s.x,s.y-10) end
  end,
 
  hit =function(s)
@@ -511,9 +517,10 @@ an_zk2 = {
   if s:ischg() then -- turn in
    enemies:rew_chg() -- rewind
    enemies:returned()
-   b *= 4
+   s.combo = 2^player.combo
+   b *= 4*s.combo
   end
-  score:add(b*player.combo)
+  score:add(b)
   s.c=0 -- animation counter
   s.f=4 -- begin die sequence
  end,
@@ -533,7 +540,7 @@ an_sim = {
  -- for mv_sin
  ax    = 0.1, -- vx accel
  maxvx = 2, -- max vx
- mrn   = 5, -- turn margin
+ mgn   = 5, -- turn margin
  vy    = 1.5, -- charge vy
  -- fore fire
  fi    = 10,
@@ -672,6 +679,7 @@ an_zg={
 an_gg={
  --super2=an_zg,
  col = 9,
+ p = 10,
  fi = 30,
  fr = 5,
  bc = 0, -- barrier count
@@ -694,7 +702,7 @@ an_gg={
    local a=get_dir(s,player)
    enemies:fire_for(s.x,s.y,
                 a,4,4)
-   s.bc=30
+   s.bc=40
   end
  end,
  draw =function(s)
@@ -769,6 +777,7 @@ an_ge={
 an_zk2s = {
 -- super=an_zk2,
  col = 14, -- pink
+ p = 9,
  -- for charge
  dgx = false, -- dodge status
  dgc = 3, -- dodge counter
@@ -834,6 +843,7 @@ an_dm ={
  lc =-2, -- loop counter
  s  =20,-- '-'(no col)
  col=2, -- purple
+ p = 12,
  ace=true,
  -------------------------
  new = function(self,_i,_j,pos)
@@ -1324,7 +1334,8 @@ player={
  init =function(s)
   s.rest=4
   s.crush=0
-  s.combo=1
+  s.combo=0
+  s.mf=0 -- missile 0:rest 1:shot 2:reflect
  end,
  ---
  extend =function(s)
@@ -1343,7 +1354,7 @@ player={
      then
     s.en_shot = false
     s.crush = 1
-    s.combo = 1
+    s.combo = 0
     sfx(sfx_.miss,1) -- miss
     enemies:missed()
   end
@@ -1362,32 +1373,32 @@ player={
   if btn(5) then
    if s.en_shot  and -- enable 
       s.shot_release and 
-      s.mx<0  then -- shot
+      s.mf == 0 then -- shot
     sfx(sfx_.shot,1) --shot
     s.mx=s.x
     s.my=s.y-4
+    s.mf=1
     s.shot_release = false
    end
   else
    s.shot_release = true
   end
   -- missile update
-  if s.mx>=0 then -- active
+  if s.mf==1 then -- active
    s.my -= 4
    if s.my <= 0 then
-    --score:add(-1)
-    s.combo = 1
-    s.mx=-200 -- remove
+    s.combo = 0
+    s.mf=0 -- remove
    end
   end
   -- missile hitcheck
-  if s.mx>=0 then -- active
+  if s.mf==1 then -- active
    local a=enemies:hitrect(s.mx,s.my,5)
    if a!=nil then -- hit
-    s.mx=-100
+    s.mf=0
     a:hit()
     s.kills += 1
-    s.combo += 1
+    if(s.combo<5) s.combo += 1
    end
   end
  end,
@@ -1395,7 +1406,7 @@ player={
  draw =function(s)
   -- ship
   if s.crush == 0 then
-   if s.mx<0 then
+   if s.mf==0 then
     putat(32,s.x,s.y-4,0)
    end
    putat(s.para>0 and 34 or 26,
@@ -1409,7 +1420,7 @@ player={
    end
   end
   -- missile
-  if s.mx>=0 then
+  if s.mf>0 then
    putat(32,s.mx,s.my,0)
   end
  end,
@@ -1419,8 +1430,9 @@ player={
   s.x=63
   --s.y=118
   s.y=127+16
-  s.mx=-200
-  s.my=-200
+  --s.mx=-200
+  --s.my=-200
+  s.mf=0 -- missile rest
   s.en_shot = false
   s.shot_release= true
   s.crush = 0 
@@ -1438,7 +1450,7 @@ player={
   end
   d = get_dist(s.mx,s.my,x,y)
   if d>=r and d<r+4 then
-   s.my=-200 -- erased
+   s.mf=0 -- erased
   end
  end,
  ---
@@ -1451,7 +1463,7 @@ player={
  end,
  ---
  is_idle =function(s)
-  return s.mx<0
+  return s.mf==0
  end,
 }
 
@@ -1642,8 +1654,8 @@ hud={
     spr(29,i*4-4,120)
    end
   end 
-  if player.combo>1 then
-   print("x"..player.combo,64,0)
+  if player.combo>0 then
+   print("x"..(2^player.combo),64,0)
   end
   -- console string
   for t in all(s.types) do
@@ -1673,7 +1685,7 @@ function append_zk2s()
  a.y = 140
  enemies:append(a,1)
  hud:warning()
- music(music_.aces)
+ --music(music_.aces)
 end
 
 function append_dms()
@@ -1684,7 +1696,7 @@ function append_dms()
   a.gaia = enemies.annes[1]
  end
  hud:warning()
- music(music_.aces)
+ --music(music_.aces)
 end
 
 function storm_clear(s)
@@ -1700,7 +1712,7 @@ end
 stages={
  { -- [1]title screen
  },
- { str="stage 0", sub="simulation",
+ { str="stage 0", sub="tuning",
   types={an_sim,an_sim}, 
   forms={0x1e,0x3f},
   charge=90, -- charge interval init
@@ -1708,7 +1720,7 @@ stages={
   trn=1, -- noiz transition
   nxt=3
  },  
- { str="stage 1", sub="encount",
+ { str="stage 1", sub="intercept",
   types={an_zk2,an_zk2},
   forms={0x1e,0x3f},
   charge=60, -- charge interval init
