@@ -63,6 +63,7 @@ t_sprite={ -- id,hflip,vflip,collisionrect
  { 13, 0, 3, 0,c=5},-- 32 misisle
  { -1, 8,13, 0,c=2},-- 33 bubble
  { 46, 7,10, 0,c=2},-- 34 ship(p)
+ {112, 0, 0, 0},    -- 35 null
 }
 ta_boom={
  { 10, 128, 7,7},
@@ -361,9 +362,11 @@ an_zk2 = {
   elseif s.f==4 then -- dead
    if s.c < 6 then
     s.s = 23 + flr(s.c/2)
-    color(7)
    else
-    enemies:dead(s)
+    s.s = 35
+    if s.c > 15 then
+     enemies:dead(s)
+    end
    end  
    s.c += 1
   end
@@ -507,6 +510,7 @@ an_zk2 = {
   if s.x>=127+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
   pal()
+  color(7)
   if s.combo>1 then
    print("x"..s.combo,s.x,s.y-10) end
  end,
@@ -1710,25 +1714,24 @@ function storm_clear(s)
 end
 
 stages={
- { -- [1]title screen
- },
- { str="stage 0", sub="tuning",
+ { --stage 0 
+  str="tuning",
   types={an_sim,an_sim}, 
   forms={0x1e,0x3f},
   charge=90, -- charge interval init
   back=stars.grid,
   trn=1, -- noiz transition
-  nxt=3
  },  
- { str="stage 1", sub="intercept",
+ { --stage 1 
+  str="intercept",
   types={an_zk2,an_zk2},
   forms={0x1e,0x3f},
   charge=60, -- charge interval init
   back=stars.flow, --backs.stars,
   trn=1, -- noiz transition
-  nxt=4,
  },
- { str="stage 2", sub="evaluate",
+ { --stage 2 
+  str="evaluate",
   types={an_gf,an_zk2,an_zk2},
   forms={0x12,0x3f,0x3f},
   charge=60, -- charge interval init
@@ -1741,9 +1744,9 @@ stages={
      s.scnt+=1
    end
   end,
-  nxt=5
  },
- { str="stage 3", sub="shortcut",
+ { --stage 3 
+  str="shortcut",
   types={an_zg,an_zg,an_zg,an_zg },
   forms={0x12,0x2a,0x15,0x2a},
   charge=40, -- charge interval init
@@ -1752,17 +1755,17 @@ stages={
    music(music_.warpin) -- warp in
   end,
   clear =storm_clear,
-  nxt=6
  },
- { str="stage 4", sub="cascades",
+ { --stage 4 
+  str="cascades",
   types={an_gf,an_zk2,an_zk2 },
   forms={0x1e,0x3f,0x3f},
   stocks={an_zk1,an_zk1},
   charge=50, -- charge interval init
   back=stars.flow,
-  nxt=7
  },
- { str="stage 5", sub="newtype",
+ { --stage 5 
+  str="newtype",
   types={an_ge,an_ge },
   forms={0x1e,0x3f},
   charge=50, -- charge interval init
@@ -1775,9 +1778,9 @@ stages={
      s.scnt+=3
    end
   end,
-  nxt=8
  },
- { str="stage 6", sub="shortcut",
+ { --stage 6 
+  str="shortcut",
   types={an_zg,an_gg,an_zg,an_gg },
   forms={0x21,0x20,0x21,0x01},
   charge=40, -- charge interval init
@@ -1786,9 +1789,9 @@ stages={
    music(music_.warpin) -- warp in
   end,
   clear =storm_clear,
-  nxt=9
  },
- { str="stage 7", sub="spars",
+ {  --stage 7
+  str="spars",
   types={an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   forms={0x2a,0x15,0x2a,0x15,0x2a},
   stocks={an_ge,an_ge},
@@ -1818,7 +1821,7 @@ scenes={
    --bg = backs.stars:new()
    player:init()
    enemies:init()
-   stage=stages[1]
+   stage={}
    s.timer = 0
    return s
   end,
@@ -1829,6 +1832,7 @@ scenes={
     player:init()
     player:rollout()
     score:reset()
+    stagenum=1
     stage=stages[2]
     scene=scenes.stage:init()
    end
@@ -1850,6 +1854,7 @@ scenes={
    s.reset=false
    player.en_shot=false
    enemies.en_charge=false
+   stage = stages[stagenum]
    if enemies:is_clear() then
     enemies:reset()
     sfx(sfx_.begin,0) -- begin
@@ -1869,8 +1874,8 @@ scenes={
    enemies:update()
    if s.timer==0 and 
       s.reset    and
-      stage.sub!=nil then
-    hud:console(stage.sub,-1,90,3)
+      stage.str!=nil then
+    hud:console(stage.str,-1,90,3)
    end
    s.timer+=1
   end,
@@ -1889,7 +1894,7 @@ scenes={
     end
    end
    color(7)
-   print(stage.str,50,72)
+   print("stage "..stagenum,50,72)
    if s.timer==60 then
     scene=scenes.play:init()
    end
@@ -1966,11 +1971,11 @@ scenes={
    enemies:update()
    if player:is_idle() and
       enemies:is_idle() then
-    if stage.nxt==nil then
+    if stagenum==#stages then
      scene =scenes.complete:init()
     elseif s.timer>30 then
      -- to nextstage
-     stage =stages[stage.nxt]
+     stagenum += 1
      scene =scenes.stage:init()
      if stage.entry then
       stage:entry()
@@ -2156,8 +2161,9 @@ __gfx__
 000000000000000000000000000000000000000b00003b000000000b00bb00000000000b3b000000000bbbbbb333300000000000000000000000000000000000
 000000000000000000000000000000000000003b0000bb000000003b03b000000000003b3b00000000000bbbb333000000000000000000000000000000000000
 0000000000000000000000000000000000000bbb000bb00000000bbb0b00000000000bbb000000000000000bb330000000000000000000000000000000000000
+
 __gff__
-0400040004000400040004000101000000000000000000000000000001010000040004000400040004000400000000000000000000000000000000000000000004000400040004000400040000000000000000000000000000000000000000000600060006000000000000000000000000000000000000000000000000000000
+0400040004000400040004000101000000000000000000000000000001010000040004000400040004000400000000000000000000000000000000000000000004000400040004000400040000000000000000000000000000000000000000000600060006000000000000000000000001000000000000000000000000000000
 0200020002000000000000000000000000000000000000000000000000000000020002000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 00cccdcecdcfdccdddddde000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
