@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
---galaxyanne 0.8
+--galaxyanne 0.9
 --by wernyv
 
 -----------------------------
@@ -63,7 +63,7 @@ t_sprite={ -- id,hflip,vflip,collisionrect
  { 13, 0, 3, 0,c=5},-- 32 misisle
  { -1, 8,13, 0,c=2},-- 33 bubble
  { 46, 7,10, 0,c=2},-- 34 ship(p)
- {112, 0, 0, 0},    -- 35 null
+ { 76, 9, 3, 0},    -- 35 x
 }
 ta_boom={
  { 10, 128, 7,7},
@@ -275,12 +275,6 @@ function an_rot_p(s)
  end
 end
 
--- shot methods --------------
---function an_shot_down(s)
---  return enemies:fire_for(
---         s.x,s.y, 0.75, 3)
---end
-
 function an_shot_rnd(s)
  local a=get_dir(s,player)+rnd(s.fw)-(s.fw/2)
  a = mid(0.75-s.fw/2, a, 0.75+s.fw/2)
@@ -363,10 +357,7 @@ an_zk2 = {
    if s.c < 6 then
     s.s = 23 + flr(s.c/2)
    else
-    s.s = 35
-    if s.c > 15 then
-     enemies:dead(s)
-    end
+    enemies:dead(s)
    end  
    s.c += 1
   end
@@ -510,9 +501,6 @@ an_zk2 = {
   if s.x>=127+8 then
    spr(93,128-8,s.y-1,1,1,true,false) end
   pal()
-  color(7)
-  if s.combo>1 then
-   print("x"..s.combo,s.x,s.y-10) end
  end,
 
  hit =function(s)
@@ -938,6 +926,11 @@ enemies={
  chg_num=0,
  annedead ={f=-1},
  dummyanne={f=-2}, -- 666
+ dcnt=1,
+ dance={1,2,3,4,1,2},
+ dcnt=1, -- dance step cnt
+ x=0,    -- x position
+ vx=0.2, -- x speed
  ---
  init=function(s)
   -- init rest positions
@@ -964,10 +957,12 @@ enemies={
  ---
  reset=function(s)
   -- reset convoy status
+  --[[
   s.dance={1,2,3,4,1,2}
   s.dcnt=1 -- dance step cnt
   s.x=0   -- x position
   s.vx=0.2 -- x speed
+  --]]
   s.en_charge=false -- disable charge
   s.annes={}
   s.anum=0
@@ -1037,6 +1032,10 @@ enemies={
  dead=function(s,a)
   if s.chg_int >= 5 then
    s.chg_int -= 1
+  end
+  print(a.combo,10,10)
+  if a.combo>1 then
+   hud:combo(a.x,a.y,a.combo)
   end
   a.f=-1 -- dead
   s.anum -=1
@@ -1177,6 +1176,9 @@ enemies={
  end,
  ---
  update=function(s)
+  if s.anum==0 and s:is_idle() then
+   return
+  end
   -- dance frame
   s.dcnt=(s.dcnt+1)%10
   if s.dcnt==9 then
@@ -1490,10 +1492,12 @@ stars={ -- bg particles
              f=flr(rnd(20)),
              i=8+((p-1)%8)*16,
              j=flr((p-1)/8)*16,
-             m=1}
+             m=s.flow}
   end
   s.posy = 0 -- grid pos-x
   s.mode = s.flow -- stars
+  s.stat = 2 -- opening
+  s.count= 0
   s.sfrm = 0 -- for storm
   s.sfrv = 0 -- for storm
  end,
@@ -1503,6 +1507,19 @@ stars={ -- bg particles
  end,
 
  switchto =function(s,m)
+  if s.next == m then
+   return
+  end
+  s.next  = m -- next mode
+  s.stat  = 1 -- closing
+  s.count = 0 -- transition count
+  if s.mode==stars.storm then
+   music(music_.warpout)
+  end
+ end,
+
+ --[[
+ switchto_ =function(s,m)
   if s.mode == m then
    return
   end
@@ -1518,19 +1535,52 @@ stars={ -- bg particles
    s.sfrm = 0
    s.sfrv = 1
   end
+  s.idle = false
  end,
+ --]]
 
  update =function(s)
-  -- grid position
+  if s.stat!=0 then -- opening or closing
+   if s.mode==stars.grid then
+    s.count += 9
+   elseif s.mode==stars.storm then
+    --s.count += 4
+   else
+    s.count=149
+   end
+   s.count += 1
+   if s.count>=150 then
+    s.mode = s.next
+    for p in all(s.pts) do
+     p.m = s.mode
+     if p.m==stars.spin then -- spin
+      p.a = get_dir(oo,p)
+      p.l = get_dist(p.x,p.y,oo.x,oo.y)
+     end
+    end
+    s.stat = (s.stat+1) % 3
+    s.count = 0
+   end
+  else
+    s.count = 150
+  end 
+  -- rotate grid position
   s.posy +=1
   if s.posy>=128 then
    s.posy=0 end
   -- storm forces
+  if s.stat==1 then -- not opening
+   s.sfrm = 150-s.count
+  else
+   s.sfrm = s.count
+  end
+  --[[
   s.sfrm+=s.sfrv
   if s.sfrm>150 then
    s.sfrm=150 end
   if s.sfrm<0 then
    s.sfrm=0 end
+  --]]
   -- particles
   for p in all(s.pts) do
    -- flow coord
@@ -1544,20 +1594,21 @@ stars={ -- bg particles
    p.f+=1
    if(p.f>20)p.f=0
    -- for mode:3(storm)
-   if p.m==3 then
+   if p.m==stars.storm then
     p.y+=(p.v*s.sfrm)/150
-    if p.v>1 then
+    if p.v>1 then   -- near
      p.x+=p.v/(151-s.sfrm)
      if p.x>127 then
       p.x=0
      end
-    else
+    else            -- far
      p.x-=p.v/(151-s.sfrm)
      if p.x<0 then
       p.x=127
      end
     end 
-   elseif p.m==4 then
+   -- for mode:4(spins) no use
+   elseif p.m==stars.spin then
     p.a += 0.005
     p.x = oo.x+sin(p.a)*p.l
     p.y = oo.y+cos(p.a)*p.l
@@ -1572,7 +1623,7 @@ stars={ -- bg particles
  end,
 
  draw =function(s)
-  if s.mode==3 and 
+  if s.mode==stars.storm and 
      flr(rnd(151-s.sfrm))==0 then
    cls(1)
    if s.sfrm>120 then
@@ -1582,7 +1633,7 @@ stars={ -- bg particles
    end
   end
   for i,p in pairs(s.pts) do
-   if p.m==1 or p.m==4 then
+   if p.m==s.flow or p.m==s.spin then
     color(6)
     if p.f<10 then
      pset(p.x,p.y) end
@@ -1593,6 +1644,14 @@ stars={ -- bg particles
      line(p.x,p.y,
       p.x,p.y+p.v*5*s.sfrm/150,13)
     end 
+   end
+  end
+  if s.mode==stars.grid and
+   s.stat!=0 then
+   for i=0,128*128-1 do
+    if rnd(5)<=2 then
+     pset(i%128,i/128,5)
+    end
    end
   end
  end
@@ -1633,21 +1692,38 @@ typestr={
   print(str,s.x,s.y)
  end
 }
-
+combostr={
+ new =function(s,_x,_y,_v)
+  o ={x=_x, y=_y, v=_v, c=0, str="a",
+      update=s.update, 
+      draw=s.draw}
+  return o
+ end,
+ update =function(s)
+  if s.c==10 then s.str=nil
+  else
+   s.c+=1
+   s.y-=0.5
+  end
+ end,
+ draw =function(s)
+  putat(35,s.x,s.y,0)
+  print(s.v,s.x,s.y)
+ end
+}
 hud={
  ccnt = 0, -- console counter
  csec = 0, -- console limit
- types={nil,nil,nil,nil},
+ types={}, --nil,nil,nil,nil},
+ xnns ={}, -- combos
  ---
  update =function(s)
-  for i=1,#s.types do
-   if s.types[i]!=nil then
-    s.types[i]:update()
-    if s.types[i].str==nil then
-     s.types[i]=nil
+  for i in all(s.types) do
+    i:update()
+    if i.str==nil then
+     del(s.types, i)
     end
    end
-  end
  end,
  ---
  draw =function(s)
@@ -1659,24 +1735,27 @@ hud={
    end
   end 
   if player.combo>0 then
-   print("x"..(2^player.combo),64,0)
+   putat(35,64,0,0)
+   print((2^player.combo),65,0)
   end
   -- console string
   for t in all(s.types) do
-   if t!=nil then
     t:draw()
-   end
   end
+  print(stars.count,0,30)
+  print(stars.sfrm,0,40)
  end,
  ---
  console =function(s,str,x,y,sec)
-  s.types[1]=
-    typestr:new(str,x,y,sec,true,11)
+  add(s.types, typestr:new(str,x,y,sec,true,11))
  end,
  ---
  warning =function(s)
-  s.types[2]=
-    typestr:new("warning",-1,70,1.5,false,8)
+  add(s.types, typestr:new("warning",-1,70,1.5,false,8))
+ end,
+ ---
+ combo =function(s,x,y,v)
+  add(s.types, combostr:new(x,y,v))
  end
 }
 
@@ -1704,7 +1783,11 @@ function append_dms()
 end
 
 function storm_clear(s)
- if stars.sfrv>=0 then
+ if stars.sfrm==150 then
+  stars.sfrv=-0.01
+  stars.sfrm=149
+ end
+ if stars.sfrm<=148 then
   music(music_.warpout) -- warp out
   stars.sfrv=-1
  end
@@ -1746,7 +1829,7 @@ stages={
   end,
  },
  { --stage 3 
-  str="shortcut",
+  str="corridor",
   types={an_zg,an_zg,an_zg,an_zg },
   forms={0x12,0x2a,0x15,0x2a},
   charge=40, -- charge interval init
@@ -1754,7 +1837,7 @@ stages={
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
-  clear =storm_clear,
+  --clear =storm_clear,
  },
  { --stage 4 
   str="cascades",
@@ -1780,7 +1863,7 @@ stages={
   end,
  },
  { --stage 6 
-  str="shortcut",
+  str="corridor 2",
   types={an_zg,an_gg,an_zg,an_gg },
   forms={0x21,0x20,0x21,0x01},
   charge=40, -- charge interval init
@@ -1840,7 +1923,7 @@ scenes={
   ---
   draw =function(s)
    map(1,0,23,40,10,1)
-   print("rev.0.8", 75,50)
+   print("rev.0.9", 75,50)
    putat(32,64,70-4,0)
    putat(26,64,70,0)
    print("hit button to start",25,90)
@@ -1855,11 +1938,13 @@ scenes={
    player.en_shot=false
    enemies.en_charge=false
    stage = stages[stagenum]
+   --[[
    if enemies:is_clear() then
     enemies:reset()
     sfx(sfx_.begin,0) -- begin
     s.reset = true
    end
+   --]]
    if stage.back!=nil then
     stars:switchto(stage.back)
    end
@@ -1883,6 +1968,7 @@ scenes={
   draw =function(s)
    player:draw()
    enemies:draw()
+   --[[
    if s.reset and -- new stage 
       stage.trn==1 and -- noiz
       s.timer<10 then -- 1/3sec
@@ -1893,10 +1979,20 @@ scenes={
      end
     end
    end
-   color(7)
-   print("stage "..stagenum,50,72)
-   if s.timer==60 then
-    scene=scenes.play:init()
+   --]]
+   if stars.stat==0 then -- idle
+    if enemies:is_clear() then
+     enemies:reset()
+     sfx(sfx_.begin,0) -- begin
+     s.reset = true
+    end
+    color(7)
+    print("stage "..stagenum,50,72)
+    if s.timer==60 then
+     scene=scenes.play:init()
+    end
+   else
+    s.timer = 0
    end
   end
  },
@@ -2070,9 +2166,9 @@ __gfx__
 00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000044444444400000004444444440000000444444444000000804444440000000080444444000000008044444400000000000000000000000000000000000
 00080444fef4444400080444fef4444400080444e5f4444400004444444444400000444444444440000044444444444000000000788000000000000000000000
-0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000000788000000000000000000000
-0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000000700000000000000000000000
-00000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000700000000000000000000000
+0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000707788000000000000000000000
+0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000070700000000000000000000000
+00000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000707700000000000000000000000
 00000000ff55444400000000ff5f444400000000ff5f444400000000ffff444400000000ffff444400000000ffff444400000000080000000000000000000000
 000000000eff4444000000000eff4444000000000e5f444400000000ff55444400000000ff5f444400000000ff5f444400000000880000000000000000000000
 000000004444444000000000444444400000000044444440000008000fef4444000008000fef4444000008000e5f444400000000080000000000000000000000
@@ -2163,7 +2259,7 @@ __gfx__
 0000000000000000000000000000000000000bbb000bb00000000bbb0b00000000000bbb000000000000000bb330000000000000000000000000000000000000
 
 __gff__
-0400040004000400040004000101000000000000000000000000000001010000040004000400040004000400000000000000000000000000000000000000000004000400040004000400040000000000000000000000000000000000000000000600060006000000000000000000000001000000000000000000000000000000
+0400040004000400040004000101000000000000000000000000000001010000040004000400040004000400000000000000000000000000000000000000000004000400040004000400040001000000000000000000000000000000000000000600060006000000000000000000000001000000000000000000000000000000
 0200020002000000000000000000000000000000000000000000000000000000020002000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 00cccdcecdcfdccdddddde000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
