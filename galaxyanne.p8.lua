@@ -945,6 +945,7 @@ enemies={
   end
   -- init bullets
   s.bullets={}
+  --[[
   for i=1,10 do
    s.bullets[i]={x=0,y=0,
                  vx=0,vy=0,
@@ -952,6 +953,7 @@ enemies={
                  mx=0,my=0,
                  r=nil,a=false}
   end
+  --]]
   s.anum = 0
  end,
  ---
@@ -1067,7 +1069,7 @@ enemies={
   end
   -- vs bullets
   for b in all(s.bullets) do
-   if b.act then -- is active
+   --if b.act then -- is active
     local sp = t_sprite[b.t+29]
     if b.t == 4 then -- barrier
      player:barrier(b.x,b.y,sp[2])
@@ -1076,12 +1078,21 @@ enemies={
       return true
      end
     end -- else
-   end
+   --end
   end
   return false
  end,
  ---
  bullet=function(s,t,x,y,vx,vy,ax,ay,mx,my)
+  b={}
+  b.t = t -- type(spr,collision)
+  b.x, b.y = x, y  -- locates
+  b.vx,b.vy= vx,vy -- speeds
+  b.ax,b.ay= ax,ay -- accels
+  b.mx,b.my= mx,my -- max-speeds
+  add(s.bullets,b)
+  return b
+  --[[
   for b in all(s.bullets) do
    if not b.act then
     b.t = t -- type(spr,collision)
@@ -1094,6 +1105,7 @@ enemies={
    end
   end
   return nil -- empty
+  --]]
  end,
  ---
  fire_to=function(s,x,y,tgx,tgy,spd)
@@ -1207,15 +1219,16 @@ enemies={
   s.pmissed=false
   -- update all bullets
   for b in all(s.bullets) do
-   if b.act then -- is active
+   --if b.act then -- is active
     b.x+=b.vx
     b.y+=b.vy
     b.vx += b.ax
     b.vy += b.ay
     if not in_field(b) then
-     b.act=false -- deactive
+     del(s.bullets,b)
+     --b.act=false -- deactive
     end
-   end
+   --end
   end
   -- convoy wave
   s.x+=s.vx
@@ -1232,9 +1245,9 @@ enemies={
  draw=function(s)
   -- bullets
   for b in all(s.bullets) do
-   if b.act then -- active
+   --if b.act then -- active
     putat(29+b.t, b.x,b.y,0)
-   end
+   --end
   end
   -- enemies
   for a in all(s.annes) do
@@ -1250,6 +1263,7 @@ enemies={
  end,
  ---
  is_idle =function(s)
+  --[[
   local active = false
   for b in all(s.bullets) do
    if b.act then
@@ -1257,9 +1271,10 @@ enemies={
     break
    end
   end
+  --]]
   return (s.anum==0 or
          s.chg_num==0) and
-         not active
+         #s.bullets==0
  end
 }
 
@@ -1744,6 +1759,7 @@ hud={
   end
   print(stars.count,0,30)
   print(stars.sfrm,0,40)
+  print(#enemies.bullets,10,50)
  end,
  ---
  console =function(s,str,x,y,sec)
