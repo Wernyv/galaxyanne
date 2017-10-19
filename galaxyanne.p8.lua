@@ -119,6 +119,7 @@ end
 -- application entries ------
 
 function _init()
+ stages_init() -- set missing default
  scene=scenes.title:init()
  score=numsco:new()
  hiscore=numsco:new()
@@ -945,15 +946,6 @@ enemies={
   end
   -- init bullets
   s.bullets={}
-  --[[
-  for i=1,10 do
-   s.bullets[i]={x=0,y=0,
-                 vx=0,vy=0,
-                 ac=0,ay=0,
-                 mx=0,my=0,
-                 r=nil,a=false}
-  end
-  --]]
   s.anum = 0
  end,
  ---
@@ -1052,7 +1044,7 @@ enemies={
  ---
  hitrect=function(s,x,y,c)
   for a in all(s.annes) do
-   if a.f>=0 then -- alive
+   if a.f>=0 and a.y<120 then -- alive
     if collision(x,y,c,
         a.x,a.y,t_sprite[a.s].c) then
      return a
@@ -1092,20 +1084,6 @@ enemies={
   b.mx,b.my= mx,my -- max-speeds
   add(s.bullets,b)
   return b
-  --[[
-  for b in all(s.bullets) do
-   if not b.act then
-    b.t = t -- type(spr,collision)
-    b.x, b.y = x, y  -- locates
-    b.vx,b.vy= vx,vy -- speeds
-    b.ax,b.ay= ax,ay -- accels
-    b.mx,b.my= mx,my -- max-speeds
-    b.act=true -- is active
-    return b
-   end
-  end
-  return nil -- empty
-  --]]
  end,
  ---
  fire_to=function(s,x,y,tgx,tgy,spd)
@@ -1263,15 +1241,6 @@ enemies={
  end,
  ---
  is_idle =function(s)
-  --[[
-  local active = false
-  for b in all(s.bullets) do
-   if b.act then
-    active=true
-    break
-   end
-  end
-  --]]
   return (s.anum==0 or
          s.chg_num==0) and
          #s.bullets==0
@@ -1533,27 +1502,6 @@ stars={ -- bg particles
   end
  end,
 
- --[[
- switchto_ =function(s,m)
-  if s.mode == m then
-   return
-  end
-  s.mode = m
-  for p in all(s.pts) do
-   p.m = m
-   if m==4 then -- spin
-    p.a = get_dir(oo,p)
-    p.l = get_dist(p.x,p.y,oo.x,oo.y)
-   end
-  end
-  if m==3 then
-   s.sfrm = 0
-   s.sfrv = 1
-  end
-  s.idle = false
- end,
- --]]
-
  update =function(s)
   if s.stat!=0 then -- opening or closing
    if s.mode==stars.grid then
@@ -1589,13 +1537,6 @@ stars={ -- bg particles
   else
    s.sfrm = s.count
   end
-  --[[
-  s.sfrm+=s.sfrv
-  if s.sfrm>150 then
-   s.sfrm=150 end
-  if s.sfrm<0 then
-   s.sfrm=0 end
-  --]]
   -- particles
   for p in all(s.pts) do
    -- flow coord
@@ -1812,29 +1753,33 @@ function storm_clear(s)
  return true
 end
 
+function stages_init()
+ for s in all(stages) do
+  if s.back==nil then
+   s.back=stars.flow
+  end
+  if s.charge==nil then
+   s.charge=50
+  end
+ end
+end
+
 stages={
  { --stage 0 
   str="tuning",
   types={an_sim,an_sim}, 
   forms={0x1e,0x3f},
-  charge=90, -- charge interval init
   back=stars.grid,
-  trn=1, -- noiz transition
  },  
  { --stage 1 
   str="intercept",
   types={an_zk2,an_zk2},
   forms={0x1e,0x3f},
-  charge=60, -- charge interval init
-  back=stars.flow, --backs.stars,
-  trn=1, -- noiz transition
  },
  { --stage 2 
   str="evaluate",
   types={an_gf,an_zk2,an_zk2},
   forms={0x12,0x3f,0x3f},
-  charge=60, -- charge interval init
-  --back = backs.stars,
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
@@ -1848,27 +1793,21 @@ stages={
   str="corridor",
   types={an_zg,an_zg,an_zg,an_zg },
   forms={0x12,0x2a,0x15,0x2a},
-  charge=40, -- charge interval init
   back=stars.storm,
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
-  --clear =storm_clear,
  },
  { --stage 4 
   str="cascades",
   types={an_gf,an_zk2,an_zk2 },
   forms={0x1e,0x3f,0x3f},
   stocks={an_zk1,an_zk1},
-  charge=50, -- charge interval init
-  back=stars.flow,
  },
  { --stage 5 
   str="newtype",
   types={an_ge,an_ge },
   forms={0x1e,0x3f},
-  charge=50, -- charge interval init
-  back=stars.flow,
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
@@ -1887,15 +1826,12 @@ stages={
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
-  clear =storm_clear,
  },
  {  --stage 7
   str="spars",
   types={an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   forms={0x2a,0x15,0x2a,0x15,0x2a},
   stocks={an_ge,an_ge},
-  charge=50, -- charge interval init
-  back=stars.flow,
   clear =function(s)
    stars.sfrv=-1
    if stars.sfrm>0 then
