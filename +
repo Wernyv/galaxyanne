@@ -309,7 +309,6 @@ an_zk2 = {
  x=0, y=0,
  vx=0,vy=1.5, -- xy speed for charge
  ax=0.1,  -- acceleration x
- ay=0,    -- accelaration y
  dx=0,    -- direction vx (1 or -1)
  maxvx=3,
  trnvx=0, -- abs(vx) need for turn
@@ -348,9 +347,9 @@ an_zk2 = {
    -- move and rotate
    s:_charge()
    s:_fire()
-   --if s.f==-1 then -- escaped
-   -- enemies:escaped()
-   --end
+   if s.f==-1 then -- escaped
+    enemies:escaped()
+   end
   elseif s.f==3 then -- return to convoy
    s:_turnin()
    if s.f!=3 then
@@ -363,12 +362,6 @@ an_zk2 = {
     enemies:dead(s)
    end  
    s.c += 1
-  elseif s.f==6 then -- escape
-   s:_escape()
-   if s.f==-1 then -- escaped
-    hud:lost(mid(s.x,0,107))
-    enemies:escaped()
-   end
   end
  end,
 
@@ -435,23 +428,22 @@ an_zk2 = {
   -- state change
   if s.y>128+8 then -- loopback
    s.lc+=1
-   --if s.lc>=3 then -- 3 loops
-   -- s.f=-1 -- escaped
-   if enemies.anum>4 or 
+   if s.lc>=3 then -- 3 loops
+    s.f=-1 -- escaped
+   elseif enemies.anum>4 or 
           not enemies.en_charge then
     s.f =  3 -- return
     s.y =-16 -- rewind y to top
     s.dx=  0
     s.s = 15 -- 
     s.c =  0 -- turnin counter
+   elseif s.lc==0 and s.y>100 then -- escape
+    s.f = 6 -- escape
    else
     -- rewind top and x adjust
     s.y=-16
     s.x = mid(0,s.x,120)
    end
-  end
-  if s.lc>=3 and s.y>80 then -- escape
-   s.f = 6 -- escape
   end
  end,
 
@@ -482,18 +474,6 @@ an_zk2 = {
     s.fc=s.fi
    end
   end
- end,
-
- _escape =function(s)
-  if s.y<20 then
-   s.f=-1
-  end
-  --s.vy+=k-0.2
-  s.vx*=0.95
-  s.x+=s.vx
-  s.vy+=-0.4 --(s.vy>-8) and -0.2 or 0
-  s.y+=s.vy
-  an_rot_to(s,0.25) -- rotate to player
  end,
 
  --_setblt =an_shot_down,
@@ -1548,7 +1528,6 @@ stars={ -- bg particles
    s.count += 1
    if s.count>=150 then
     s.mode = s.next
-    camera(0,0)
     s:_set_pts(s.mode)
     s.stat = s.stat==1 and 2 or 0
     s.count = 0
@@ -1727,6 +1706,9 @@ hud={
   for t in all(s.types) do
     t:draw()
   end
+  print(stars.count,0,30)
+  print(stars.sfrm,0,40)
+  print(#enemies.bullets,10,50)
   -- stage flags
   x=128-5
   snum = stagenum==nil and 0 or stagenum-1
@@ -1753,10 +1735,6 @@ hud={
  ---
  combo =function(s,x,y,v)
   add(s.types, combostr:new(x,y,v))
- end,
- ---
- lost =function(s,x)
-  add(s.types, typestr:new("lost",x,10,1.5,false,11))
  end
 }
 
