@@ -957,6 +957,7 @@ enemies={
  vx=0.2, -- x speed
  ---
  init=function(s)
+  s.annes = {}
   -- init rest positions
   s.rests = {}
   for j=1,5 do
@@ -1505,7 +1506,7 @@ stars={ -- bg particles
   end
   s.posy = 0 -- grid pos-x
   s.mode = s.flow -- stars
-  s.stat = 2 -- opening
+  s.stat = 0 -- opening
   s.count= 0
   s.sfrm = 0 -- for storm
  end,
@@ -1639,6 +1640,8 @@ stars={ -- bg particles
     end
    end
   end
+  print("mode "..s.mode,0,20)
+  print("stat "..s.stat,0,30)
  end
 }
 
