@@ -406,7 +406,8 @@ an_zk2 = {
  _turnout =function(s)
   s.c += 1 -- turnout
   if s.c%2==0 then
-   if s.i <= 3 then -- leftside
+   --if s.i <= 3 then -- leftside
+   if s.x <= 63 then -- leftside
     s.s = an_rot_l(s.s)
     s.x -= 4-abs(12-s.c)/3
     s.y -= (12-s.c)/2
@@ -954,7 +955,7 @@ enemies={
  dance={1,2,3,4,1,2},
  dcnt=1, -- dance step cnt
  x=0,    -- x position
- vx=0.2, -- x speed
+ vx=0.3, --0.2, -- x speed
  ---
  init=function(s)
   s.annes = {}
@@ -978,9 +979,9 @@ enemies={
   --[[
   s.dance={1,2,3,4,1,2}
   s.dcnt=1 -- dance step cnt
-  s.x=0   -- x position
   s.vx=0.2 -- x speed
   --]]
+  s.x=0   -- x position
   s.en_charge=false -- disable charge
   s.annes={}
   s.anum=0
@@ -1204,8 +1205,12 @@ enemies={
    end
   end
   -- update all enemies
+  imin=6
+  imax=1
   for a in all(s.annes) do
    if a.f>=0 then -- active
+    imin=min(imin,a.i)
+    imax=max(imax,a.i)
     if s.pmissed and a.ace then
      a.lc = 3
     end
@@ -1234,9 +1239,12 @@ enemies={
   end
   -- convoy wave
   s.x+=s.vx
-  if s.x<=-10 then
+  --if s.x<=-10 then
+  --if s.x<=-(imin*18-18) then
+  if s.x<=-s.rests[1][imin].x+10 then
    s.vx = abs(s.vx)
-  elseif s.x>=10 then
+  --elseif s.x>=(6-imax)*18 then
+  elseif s.x>=127-s.rests[1][imax].x-10 then
    s.vx = -abs(s.vx)
   end
   if s.chg_cnt>0 then
@@ -1506,7 +1514,8 @@ stars={ -- bg particles
   end
   s.posy = 0 -- grid pos-x
   s.mode = s.flow -- stars
-  s.stat = 0 -- opening
+  s.next = s.mode
+  s.stat = 0 -- not opening/closing
   s.count= 0
   s.sfrm = 0 -- for storm
  end,
