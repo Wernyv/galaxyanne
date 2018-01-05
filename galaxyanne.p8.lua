@@ -18,10 +18,10 @@ t_coll={ -- collision pattern
  {-3,-3,3,4},-- ship
  {-1,-4,1,1},-- enemy bullet |
  {-1,-1,1,1},-- enemy bullet *
- {-1, 0,1,4}}-- players missile
+ {-1, 0,1,4} -- players missile
+}
 
 t_sprite={ -- id,hflip,vflip,collisionrect
--- no l<->r u<->d
  -- in convoy
  {  6, 7, 4, 0,c=1},-- ('-') stay 1
  {  0, 7, 4, 0,c=1},-- |'-'| stay 2
@@ -69,6 +69,7 @@ ta_boom={
  { 10, 128, 7,7},
  { 15, 130, 7,7},
  { 20, 132, 7,7}}
+
 music_={
  warpin=0,
  warpout=2,
@@ -138,53 +139,6 @@ function _draw()
  hud:draw()
 -- debug_hud()
 end
-
------------------------------
--- debug --------------------
---[[
-debug=true
-debug_rect=false
-
-dprint_y=0
-function dprint(str)
- print(str,0,dprint_y)
- dprint_y+=8
-end
-
-function debug_hud()
- if debug==nil then
-  return
- end
- dprint_y=10
- color(11)
- rect(0,0,enemies.chg_cnt,2)
- line(enemies.chg_int,0,enemies.chg_int,4)
- dprint(" enum:"..enemies.anum)
- dprint(" chgn:"..enemies.chg_num)
- --dprint("scene:"..scene.name)
- dprint(" sfrm:"..stars.sfrm)
- if player.para!=nil then
-  dprint(" para:"..player.para)
- end
- if d_dgs!=nil then
-  dprint(" dgs:"..d_dgs)
-  dprint(" dgc:"..d_dgc)
- end
- for b in all(enemies.bullets) do
-  if b.act then
-   dprint("bullet:x "..b.x)
-   dprint("bullet:y "..b.y)
-   break
-  end
- end
- if debug_rect then
-  color(12)
-  rect(player.x+4,player.y+7,
-       player.x+4+6,player.y+7+7)
- end
- color(8)
-end
---]]
 
 -----------------------------
 -- globals ------------------
@@ -348,9 +302,6 @@ an_zk2 = {
    -- move and rotate
    s:_charge()
    s:_fire()
-   --if s.f==-1 then -- escaped
-   -- enemies:escaped()
-   --end
   elseif s.f==3 then -- return to convoy
    s:_turnin()
    if s.f!=3 then
@@ -406,12 +357,11 @@ an_zk2 = {
  _turnout =function(s)
   s.c += 1 -- turnout
   if s.c%2==0 then
-   --if s.i <= 3 then -- leftside
    if s.x <= 63 then -- leftside
     s.s = an_rot_l(s.s)
     s.x -= 4-abs(12-s.c)/3
     s.y -= (12-s.c)/2
-   else
+   else              -- rightside
     s.s = an_rot_r(s.s)
     s.x += 4-abs(12-s.c)/3
     s.y -= (12-s.c)/2
@@ -436,6 +386,9 @@ an_zk2 = {
   -- state change
   if s.y>128+8 then -- loopback
    s.lc+=1
+   if s.lc==3 then
+    s.ax *= 1.5
+   end
    --if s.lc>=3 then -- 3 loops
    -- s.f=-1 -- escaped
    if enemies.anum>4 or 
@@ -534,7 +487,8 @@ an_zk2 = {
   if s:ischg() then -- turn in
    enemies:rew_chg() -- rewind
    enemies:returned()
-   s.combo = 2^player.combo
+   --s.combo = 2^player.combo
+   s.combo = player.combo
    b *= 4*s.combo
   end
   score:add(b)
@@ -761,6 +715,7 @@ an_ge={
  p   = 5, -- score
  col = 13,
  ax  = 0.15,
+ fr  = 15, -- fire rate
  tx  = nil, -- target-x
  -------------------------
  new = function(self,_i,_j)
@@ -794,7 +749,7 @@ an_ge={
 an_zk2s = {
 -- super=an_zk2,
  col = 14, -- pink
- p = 9,
+ p = 10,
  -- for charge
  dgx = false, -- dodge status
  dgc = 3, -- dodge counter
@@ -954,7 +909,7 @@ enemies={
  dcnt=1,
  dance={1,2,3,4,1,2},
  dcnt=1, -- dance step cnt
- x=0,    -- x position
+ x=0,    -- convoy x offset
  vx=0.3, --0.2, -- x speed
  ---
  init=function(s)
@@ -976,25 +931,23 @@ enemies={
  ---
  reset=function(s)
   -- reset convoy status
-  --[[
-  s.dance={1,2,3,4,1,2}
-  s.dcnt=1 -- dance step cnt
-  s.vx=0.2 -- x speed
-  --]]
-  s.x=0   -- x position
+  s.x=0   -- convoy x
+  s.stop=nil
   s.en_charge=false -- disable charge
   s.annes={}
   s.anum=0
   s.escnum=0 -- escaped num
-  s.chg_int=stage.charge
-  s.chg_cnt=stage.charge
+  -- s.chg_int=stage.charge
+  -- s.chg_cnt=stage.charge
+  s.chg_int=stage[3]
+  s.chg_cnt=stage[3]
   s.chg_num=0
   if stage.stocks then
    s.stidx = {0,0,0,0,0,0}
   end
   local sq = 1 -- sequencial
-  local cv = stage.types
-  local fm = stage.forms
+  local cv = stage[2] -- .types
+  local fm = stage[1] -- .forms
   for j=1,#cv do
    for i=1,6 do
     sq=(j-1)*6+i
@@ -1036,6 +989,7 @@ enemies={
   if s.chg_num > 0 then
    s.chg_num-=1
    if s.chg_num==0 then
+    s.chg_cnt = s.chg_int/3
     if s.charge_snd then
      sfx(sfx_.charge,0,20)
      s.charge_snd=false
@@ -1073,6 +1027,14 @@ enemies={
     if collision(x,y,c,
         a.x,a.y,t_sprite[a.s].c) then
      return a
+    else -- convoy stop
+     if a.f==0 and -- convoy
+        y==mid(a.y+2,y,a.y-2) and -- same y
+        --12<=abs(a.x-x) then -- near x
+        sgn(x-a.x)==sgn(s.vx) and -- same side
+        abs(x-a.x)<10 then -- near x
+        s.stop = true
+     end
     end
    end
   end
@@ -1194,6 +1156,7 @@ enemies={
   if s.anum==0 and s:is_idle() then
    return
   end
+  --[[
   -- dance frame
   s.dcnt=(s.dcnt+1)%10
   if s.dcnt==9 then
@@ -1204,6 +1167,7 @@ enemies={
     end
    end
   end
+  --]]
   -- update all enemies
   imin=6
   imax=1
@@ -1237,19 +1201,27 @@ enemies={
     end
    --end
   end
-  -- convoy wave
-  s.x+=s.vx
-  --if s.x<=-10 then
-  --if s.x<=-(imin*18-18) then
-  if s.x<=-s.rests[1][imin].x+10 then
-   s.vx = abs(s.vx)
-  --elseif s.x>=(6-imax)*18 then
-  elseif s.x>=127-s.rests[1][imax].x-10 then
-   s.vx = -abs(s.vx)
+  -- dance frame
+  s.dcnt=(s.dcnt+1)%10
+  if s.dcnt==9 then
+   for row=1,6 do
+    s.dance[row]+=1
+    if s.dance[row]==5 then
+     s.dance[row]=1
+    end
+   end
   end
-  if s.chg_cnt>0 then
-   s.chg_cnt-=1
+  if s.stop!=true then
+   -- convoy wave
+   s.x += s.vx
+   if s.x<=-s.rests[1][imin].x+10 then
+    s.vx = abs(s.vx)
+   elseif s.x>=127-s.rests[1][imax].x-10 then
+    s.vx = -abs(s.vx)
+   end
   end
+  -- charge interval
+  s.chg_cnt = max(0, s.chg_cnt-1)
  end,
  ---
  draw=function(s)
@@ -1266,6 +1238,9 @@ enemies={
    end
   end
   --pal(8,8)
+  --if s.stop!=nil then
+  -- print("stop",64,64)
+  --end
  end,
  ---
  is_clear=function(s)
@@ -1356,7 +1331,7 @@ player={
  init =function(s)
   s.rest=4
   s.crush=0
-  s.combo=0
+  s.combo=1
   s.mf=0 -- missile 0:rest 1:shot 2:reflect
  end,
  ---
@@ -1376,7 +1351,7 @@ player={
      then
     s.en_shot = false
     s.crush = 1
-    s.combo = 0
+    s.combo = 1
     sfx(sfx_.miss,1) -- miss
     enemies:missed()
   end
@@ -1409,7 +1384,7 @@ player={
   if s.mf==1 then -- active
    s.my -= 4
    if s.my <= 0 then
-    s.combo = 0
+    s.combo = 1
     s.mf=0 -- remove
    end
   end
@@ -1420,10 +1395,14 @@ player={
     s.mf=0
     a:hit()
     s.kills += 1
-    if s.combo<5 then
-     s.combo += 1
+    s.combo = min(10, s.combo+1)
+    if a.ace then
+     s:extend()
     end
    end
+  end
+  if s.mf==0 then
+   enemies.stop = nil
   end
  end,
  ---
@@ -1649,8 +1628,8 @@ stars={ -- bg particles
     end
    end
   end
-  print("mode "..s.mode,0,20)
-  print("stat "..s.stat,0,30)
+  --print("mode "..s.mode,0,20)
+  --print("stat "..s.stat,0,30)
  end
 }
 
@@ -1717,7 +1696,7 @@ hud={
  update =function(s)
   for i in all(s.types) do
     i:update()
-    if i.str==nil then
+    if not i.str then -- ==nil
      del(s.types, i)
     end
    end
@@ -1733,7 +1712,8 @@ hud={
   end 
   if player.combo>0 then
    putat(35,64,0,0)
-   print((2^player.combo),65,0)
+   --print((2^player.combo),65,0)
+   print(player.combo,65,0)
   end
   -- console string
   for t in all(s.types) do
@@ -1798,26 +1778,38 @@ end
 function stages_init()
  for s in all(stages) do
   s.back = s.back or stars.flow
-  s.charge = s.charge or 50
+  s[3] = s[3] or 90 -- charge interval
  end
 end
 
 stages={
  { --stage 0 
-  str="tuning",
-  types={an_sim,an_sim}, 
-  forms={0x1e,0x3f},
+  {0x1e,0x3f},
+  {an_sim,an_sim}, 
+  str="tuning", -- aaa
   back=stars.grid,
  },  
  { --stage 1 
+  {0x02,0x05},
+  {an_zk2,an_zk2},
+  30,
+  str="type:ann-z2",
+ },
+ { --stage 1 
+  {0x1e,0x3f},
+  {an_zk2,an_zk2},
   str="intercept",
-  types={an_zk2,an_zk2},
-  forms={0x1e,0x3f},
+ },
+ { --stage 1 
+  {0x12,0x21},
+  {an_gf,an_gf},
+  60,  -- 1.5s
+  str="type:ann-gf",
  },
  { --stage 2 
+  {0x12,0x3f,0x3f},
+  {an_gf,an_zk2,an_zk2},
   str="evaluate",
-  types={an_gf,an_zk2,an_zk2},
-  forms={0x12,0x3f,0x3f},
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
@@ -1828,52 +1820,66 @@ stages={
   end,
  },
  { --stage 3 
+  {0x12,0x2a,0x15,0x2a},
+  {an_zg,an_zg,an_zg,an_zg },
+  45,
   str="corridor",
-  types={an_zg,an_zg,an_zg,an_zg },
-  forms={0x12,0x2a,0x15,0x2a},
   back=stars.storm,
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
  },
+ { --stage 1 
+  {0x12,0x21},
+  {an_zk1,an_zk1},
+  45,
+  str="type:z1",
+ },
  { --stage 4 
+  {0x1e,0x3f,0x3f},
+  {an_gf,an_zk2,an_zk2 },
   str="cascades",
-  types={an_gf,an_zk2,an_zk2 },
-  forms={0x1e,0x3f,0x3f},
   stocks={an_zk1,an_zk1},
  },
+ { --stage 1 
+  {0x21,0x21},
+  {an_ge,an_ge},
+  30,
+  str="type:ge",
+ },
  { --stage 5 
+  {0x1e,0x3f},
+  {an_ge,an_ge },
   str="newtype",
-  types={an_ge,an_ge },
-  forms={0x1e,0x3f},
   special =function(s)
    if enemies.anum==0 and
-      s.scnt==0 and
-     player.kills>=5 then
-     append_dms()
-     s.scnt+=3
+      s.scnt==0 and 
+      player.kills>=5 then
+    append_dms()
+    s.scnt+=3
    end
   end,
  },
  { --stage 6 
+  {0x21,0x20,0x21,0x01},
+  {an_zg,an_gg,an_zg,an_gg },
   str="corridor 2",
-  types={an_zg,an_gg,an_zg,an_gg },
-  forms={0x21,0x20,0x21,0x01},
-  charge=40, -- charge interval init
+  40, -- charge interval init
   back=stars.storm,
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
  },
  {  --stage 7
+  {0x2a,0x15,0x2a,0x15,0x2a},
+  {an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   str="spars",
-  types={an_gf,an_gf,an_ge,an_zk1,an_zk1 },
-  forms={0x2a,0x15,0x2a,0x15,0x2a},
   stocks={an_ge,an_ge},
   clear =function(s)
-   if stars.sfrm>0 then
-    return false end
-   return true
+   return stars.sfrm <= 0
+  --if stars.sfrm>0 then
+  --  return false end
+  -- return true
   end
  },
  -- stock
