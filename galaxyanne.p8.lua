@@ -127,11 +127,11 @@ function putat(id,x,y,blink)
    sp += blink*2
   end
   if fget(sp,0) then
-   sz = 1
+   sz = 1 -- 8x8
   end
   spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
  else
-  circ(x,y,st[2],st[3])
+  circ(x,y,st[2],st[3]) -- barrier
  end
 end
 
@@ -153,8 +153,9 @@ end
 -- application entries ------
 
 function _init()
- t_dnce = textract(t_dnce)
- t_coll = textract(t_coll)
+ -- extract tables
+ t_dnce   = textract(t_dnce)
+ t_coll   = textract(t_coll)
  t_sprite = textract(t_sprite)
  stages_init() -- set missing default
  scene=scenes.title:init()
@@ -163,9 +164,9 @@ function _init()
 end
 
 function _update()
- stars:update()
- scene:update()
- hud:update()
+ stars:update() -- bg
+ scene:update() -- games
+ hud:update()   -- fg
 end
 
 function _draw()
@@ -178,17 +179,16 @@ end
 
 -----------------------------
 -- globals ------------------
-
 stage = nil
 scene = nil
 
 -- consts -------------------
-oo={x=63.5,y=63.5}
+oo={x=63.5,y=63.5} -- screen centre
 
 -----------------------------
 -- functions ----------------
 
-function limabs(_v,_w)
+function limabs(_v,_w) -- adjust v to -w<=v<=w
  return mid(-_w,_v,_w)
 end
 
@@ -218,6 +218,8 @@ end
 
 function instance(class, obj)
  -- copy all key-value w/o 'new'
+ local key
+ local val
  for key,val in pairs(class) do
   if key!="new" then
    obj[key]=val
@@ -227,6 +229,7 @@ function instance(class, obj)
 end
 
 function pals(p1,p2)
+ local i
  for i=1,#p1 do
   pal(p1[i],p2[i])
  end
@@ -910,7 +913,64 @@ an_dm ={
   end
  end,
 }
-
+gcount = 0
+an_el= {
+ x=63,
+ y=40,
+ vx=0,vy=0,
+ ax=0,ay=0,
+ tx=63,ty=0,
+ ox=0,nx=0, --debug
+ s=20,
+ f=4,
+ m=0,
+ new = function(self,_i,_j,pos)
+  local obj={ i=_i, j=_j, idx=6*(_j-1)+_i }
+  return instance(self,obj)
+ end,
+ update = function(s)
+  if player.mf!=0 and player.my>s.y and 
+    mid(player.mx,s.x-5,s.x+5)==player.mx then
+   s.tx = s.x + 20 * sgn(s.x - player.mx)
+  end
+  s:ease()
+ end,
+ draw = function(s)
+  print(s.ttd,0,64)
+  print("TX  "..s.tx,0,64+8)
+  print("VX  "..s.vx,0,64+16)
+  print("AX  "..s.ax,0,64+24)
+  an_zk2.draw(s)
+  print("OX  "..s.ox,0,64+32)
+  print("NX  "..s.nx,0,64+40)
+  print("GCNT"..player.mx,0,64+56)
+ end,
+ ease = function(s)
+  -- p:position v:speed[pixel/frame] a:accela[pixel/frame^2] t:target-p
+  -- TTS = v[current pix/frm] / a[<0 pix/(frm*frm)] [frame to v==0]
+  -- TTD = v * TTS / 2 = (v^2 / a) / 2 = v^2 / 2a
+  -- if TTD > t-p then a *= -1
+  s.ax = sgn(s.tx - s.x) * 0.08
+  if abs(s.x - s.tx) < 1.0 then
+   s.tx = s.x
+   s.ax = 0
+   s.vx = 0
+  else
+   s.ttd = s.vx * s.vx / (2 * abs(s.ax))
+   if s.ttd >= abs(s.x - s.tx) then
+    s.ax *= -1
+   end
+  end
+  s.ox = s.x
+  s.vx += s.ax
+  s.x += s.vx
+  s.nx = s.x
+ end,
+ cntup = function(s)
+  s.cnt = s.cnt+1
+  --gcount += 1
+ end
+}
 -------------------------------------
 function collision(x1,y1,c1,x2,y2,c2)
  if c1==nil or c2==nil then
@@ -1775,8 +1835,8 @@ hud={
   add(s.types, typestr:new(str,x,y,sec,true,11))
  end,
  ---
- warning =function(s)
-  add(s.types, typestr:new("warning",-1,70,1.5,false,8))
+ caution =function(s)
+  add(s.types, typestr:new("caution",-1,70,1.5,false,8))
  end,
  ---
  combo =function(s,x,y,v)
@@ -1796,7 +1856,7 @@ function append_zk2s()
  a.x = 127-player.x
  a.y = 140
  enemies:append(a,1)
- hud:warning()
+ hud:caution()
  --music(music_.aces)
 end
 
@@ -1807,8 +1867,14 @@ function append_dms()
   enemies:append(a,i)
   a.gaia = enemies.annes[1]
  end
- hud:warning()
+ hud:caution()
  --music(music_.aces)
+end
+
+function append_el()
+ a = an_el:new(1,1)
+ enemies:append(a,1)
+ hud:caution()
 end
 
 function stages_init()
@@ -1826,23 +1892,23 @@ stages={
   back=stars.grid,
  },  
  { --stage 1 
-  {0x02,0x05},
+  {0x08,0x21},
   {an_zk2,an_zk2},
   30,
   str="type:ann-z2",
  },
- { --stage 1 
+ { --stage 2 
   {0x1e,0x3f},
   {an_zk2,an_zk2},
   str="intercept",
  },
- { --stage 1 
+ { --stage 3 
   {0x12,0x21},
   {an_gf,an_gf},
   60,  -- 1.5s
   str="type:ann-gf",
  },
- { --stage 2 
+ { --stage 4 
   {0x12,0x3f,0x3f},
   {an_gf,an_zk2,an_zk2},
   str="evaluate",
@@ -1855,38 +1921,42 @@ stages={
    end
   end,
  },
- { --stage 3 
+ { --stage 5 
   {0x12,0x2a,0x15,0x2a},
   {an_zg,an_zg,an_zg,an_zg },
   45,
-  str="corridor",
+  str="corridor #1",
   back=stars.storm,
   entry =function(s)
    music(music_.warpin) -- warp in
   end,
  },
- { --stage 1 
-  {0x12,0x21},
+ { --stage 6 
+  {0x11,0x20},
   {an_zk1,an_zk1},
-  45,
-  str="type:z1",
+  30,
+  str="type:ann-z1",
  },
- { --stage 4 
+ { --stage 7 
   {0x1e,0x3f,0x3f},
-  {an_gf,an_zk2,an_zk2 },
+  {an_zk1,an_gf,an_zk2}
+ },
+ { --stage 8 
+  {0x1e,0x3f,0x3f},
+  {an_gf,an_gf,an_zk2 },
   str="cascades",
   stocks={an_zk1,an_zk1},
  },
- { --stage 1 
+ { --stage 9 
   {0x21,0x21},
   {an_ge,an_ge},
   30,
-  str="type:ge",
+  str="type:ann-ge",
  },
- { --stage 5 
-  {0x1e,0x3f},
-  {an_ge,an_ge },
-  str="newtype",
+ { --stage 10 
+  {0x1e,0x3f,0x3f},
+  {an_ge,an_ge,an_ge},
+  str="newtypes",
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and 
@@ -1896,7 +1966,7 @@ stages={
    end
   end,
  },
- { --stage 6 
+ { --stage 11 
   {0x21,0x20,0x21,0x01},
   {an_zg,an_gg,an_zg,an_gg },
   str="corridor 2",
@@ -1906,17 +1976,22 @@ stages={
    music(music_.warpin) -- warp in
   end,
  },
- {  --stage 7
-  {0x2a,0x15,0x2a,0x15,0x2a},
+ {  --stage 12
+  {0x2a},--,0x15,0x2a,0x15,0x2a},
   {an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   str="spars",
-  stocks={an_ge,an_ge},
-  clear =function(s)
-   return stars.sfrm <= 0
+  --stocks={an_ge,an_ge},
+  special =function(s)
+   if enemies.anum==0 then
+    append_el()
+   end
+  end,
+   --return false 
+   --return stars.sfrm <= 0
   --if stars.sfrm>0 then
   --  return false end
   -- return true
-  end
+  --end
  },
  -- stock
  -- accuracy
@@ -1946,7 +2021,7 @@ scenes={
     player:init()
     player:rollout()
     score:reset()
-    stagenum=1
+    stagenum=13
     stage=stages[2]
     scene=scenes.stage:init()
    end
