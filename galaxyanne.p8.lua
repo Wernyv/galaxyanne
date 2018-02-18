@@ -1,72 +1,71 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
---galaxyanne 0.9
+--galaxyanne 0.91
 --by wernyv
 
 -----------------------------
 -- tables -------------------
 
 t_dnce={ -- dance frames
- "x,y,s,",
- " 0, 0, 2,",
- " 1,-1, 1,",
- " 0, 0, 2,",
- "-1,-1, 1,"
+--x,y,s
+ { 0, 0, 2},
+ { 1,-1, 1},
+ { 0, 0, 2},
+ {-1,-1, 1},
 }
 t_coll={ -- collision pattern
- "1,2,3,4,",
- "-3,-3,4,4,",-- annes
- "-3,-3,3,4,",-- ship
- "-1,-4,1,1,",-- enemy bullet |
- "-1,-1,1,1,",-- enemy bullet *
- "-1,0,1,4,"  -- players missile
+ {-3,-3,4,4},-- annes
+ {-3,-3,3,4},-- ship
+ {-1,-4,1,1},-- enemy bullet |
+ {-1,-1,1,1},-- enemy bullet *
+ {-1, 0,1,4},-- players missile
 }
 t_sprite={ -- id,hflip,vflip,collisionrect
 -- no l<->r u<->d
- "1,2,3,4,c,",       -- index
+--1,2,3,4,c,
  -- in convoy
- "  6, 7, 4, 0, 1,",-- ('-') stay 1
- "  0, 7, 4, 0, 1,",-- |'-'| stay 2
+ {  6, 7, 4, 0, 1},-- ('-') stay 1
+ {  0, 7, 4, 0, 1},-- |'-'| stay 2
  -- rotation 360/22.5
- " 70,10, 7, 0, 1,",-- 3( =   90' fly
- " 64,10, 6, 0, 1,",-- 4/'-'/ 67'
- " 38, 9, 5, 0, 1,",-- 5/'-'/ 45'
- " 32, 7, 4, 0, 1,",-- 6/'-'/ 22'
- "  6, 7, 4, 0, 1,",-- 7|'-'|
- " 32, 7, 4, 2, 1,",-- 8\'-'\ -22'
- " 38, 5, 5, 2, 1,",-- 9\'-'\ -45'
- " 64, 4, 6, 2, 1,",--10\'-'\ -67'
- " 70, 4, 7, 2, 1,",--11 = )
- " 64, 4, 8, 3, 1,",--12/,-,/ 
- " 38, 5, 9, 3, 1,",--13/,-,/ -135'
- " 32, 7,10, 3, 1,",--14/,-,/
- "  6, 7,10, 3, 1,",--15|,-,| 180'
- " 32, 7,10, 1, 1,",--16\,-,\ 
- " 38, 9, 9, 1, 1,",--17\,-,\ 135' 
- " 64,10, 8, 1, 1,",--18\,-,\ 
- " 70,10, 7, 0, 1,",--19 ( =  90' fly
+ { 70,10, 7, 0, 1},-- 3( =   90' fly
+ { 64,10, 6, 0, 1},-- 4/'-'/ 67'
+ { 38, 9, 5, 0, 1},-- 5/'-'/ 45'
+ { 32, 7, 4, 0, 1},-- 6/'-'/ 22'
+ {  6, 7, 4, 0, 1},-- 7|'-'|
+ { 32, 7, 4, 2, 1},-- 8\'-'\ -22'
+ { 38, 5, 5, 2, 1},-- 9\'-'\ -45'
+ { 64, 4, 6, 2, 1},--10\'-'\ -67'
+ { 70, 4, 7, 2, 1},--11 = )
+ { 64, 4, 8, 3, 1},--12/,-,/ 
+ { 38, 5, 9, 3, 1},--13/,-,/ -135'
+ { 32, 7,10, 3, 1},--14/,-,/
+ {  6, 7,10, 3, 1},--15|,-,| 180'
+ { 32, 7,10, 1, 1},--16\,-,\ 
+ { 38, 9, 9, 1, 1},--17\,-,\ 135' 
+ { 64,10, 8, 1, 1},--18\,-,\ 
+ { 70,10, 7, 0, 1},--19 ( =  90' fly
  -- no collision ver
- "  6, 7, 4, 0,", -- 20 |'-'|
+ {  6, 7, 4, 0}, -- 20 |'-'|
  -- special
- " 96, 7, 7, 0,",-- 21 24 hyde
- " 44, 7, 7, 0,",-- 22 25 ball
+ { 96, 7, 7, 0},-- 21 24 hyde
+ { 44, 7, 7, 0},-- 22 25 ball
  -- deads
- "128, 7, 7, 0,",-- 23 21 dead 1
- "130, 7, 7, 0,",-- 24 22 dead 2
- "132, 7, 7, 0,",-- 25 23 dead 3
+ {128, 7, 7, 0},-- 23 21 dead 1
+ {130, 7, 7, 0},-- 24 22 dead 2
+ {132, 7, 7, 0},-- 25 23 dead 3
  -- ship
- " 14, 7,10, 0, 2,",-- 26 ship
- "160, 7,10, 0,",-- 27 miss1
- "162, 7,10, 0,",-- 28 miss2
- "163, 7,10, 0,",-- 29 miss3
+ { 14, 7,10, 0, 2},-- 26 ship
+ {160, 7,10, 0},-- 27 miss1
+ {162, 7,10, 0},-- 28 miss2
+ {163, 7,10, 0},-- 29 miss3
  -- bullets (8x8)
- " 12, 0, 4, 0, 3,",-- 30 bullet |
- " 28, 1, 2, 0, 4,",-- 31 bullet *
- " 13, 0, 3, 0, 5,",-- 32 misisle
- " -1, 8,13, 0, 2,",-- 33 bubble
- " 46, 7,10, 0, 2,",-- 34 ship(p)
- " 76, 9, 3, 0," -- 35 x
+ { 12, 0, 4, 0, 3},-- 30 bullet |
+ { 28, 1, 2, 0, 4},-- 31 bullet *
+ { 13, 0, 3, 0, 5},-- 32 misisle
+ { -1, 8,13, 0, 2},-- 33 bubble
+ { 46, 7,10, 0, 2},-- 34 ship(p)
+ { 76, 9, 3, 0}, -- 35 x
 }
 ta_boom={
  { 10, 128, 7,7},
@@ -87,36 +86,6 @@ sfx_={
  begin=5,
  extend=6,
 }
-
-function tsplit(str)
- local r={}
- local w=""
- for i=1,#str do
-  c=sub(str,i,i)
-  if c=="," then
-   w=tonum(w)!=nil and tonum(w) or w
-   add(r,w)
-   w=""
-  else
-   w=w..c
-  end
- end
- return r
-end
-
-function textract(tbl)
- local r={}
- local id=tsplit(tbl[1])
- for i=2,#tbl do
-  local l={}
-  ws=tsplit(tbl[i])
-  for j=1,#id do
-   l[id[j]]=tonum(ws[j])
-  end
-  add(r,l)
- end
- return r
-end
 
 function putat(id,x,y,blink)
  local st = t_sprite[id]
@@ -154,9 +123,9 @@ end
 
 function _init()
  -- extract tables
- t_dnce   = textract(t_dnce)
- t_coll   = textract(t_coll)
- t_sprite = textract(t_sprite)
+ --t_dnce   = textract(t_dnce)
+ --t_coll   = textract(t_coll)
+ --t_sprite = textract(t_sprite)
  stages_init() -- set missing default
  scene=scenes.title:init()
  score=numsco:new()
@@ -324,7 +293,7 @@ an_zk2 = {
   -- blink
   if s.m>1 then
    s.m=(s.m+1)%9 --mb=2,3
-  elseif flr(rnd(100))==5 then
+  elseif rnd(100)<2 then --flr(rnd(100))==5 then
   -- assert(false)
    s.m=3
   end
@@ -365,12 +334,12 @@ an_zk2 = {
  _convoy =function(s)
   -- dance frame per i 
   local d=t_dnce[enemies.dance[s.i]]
-  local wx=enemies.rests[s.j][s.i].x+d.x
+  local wx=enemies.rests[s.j][s.i].x+d[1]
            +enemies.x
            -- +flr(enemies.x)
-  local wy=enemies.rests[s.j][s.i].y+d.y
-  local ps=d.s
-  if stage.stocks!=nil and
+  local wy=enemies.rests[s.j][s.i].y+d[2]
+  local ps=d[3]
+  if stage.stocks and
    abs(s.y-wy)>2 then
    s.y+=2 --sgn(wy-s.y)*2
    s.s=22
@@ -378,13 +347,13 @@ an_zk2 = {
   end
   s.x=wx
   s.y=wy
-  s.s=d.s
+  s.s=d[3]
   -- judge to charge
   if enemies.en_charge then
    local go = false
    if not enemies:exist(s.i,s.j-1) 
     and enemies.chg_cnt==0 
-    and flr(rnd(5))==3 -- 1/5
+    and rnd(5)<1 -- flr(rnd(5))==3 -- 1/5
     then
     s.f=1 -- turn-out
     s.s=7 -- spr for #1
@@ -545,7 +514,7 @@ an_zk2 = {
 an_sim = {
 -- super=an_zk2,
  -- type parameters
- col = 3, -- dark green
+ col = 11, -- dark green
  p   = 1, -- score
  -- for mv_sin
  ax    = 0.1, -- vx accel
@@ -564,7 +533,7 @@ an_sim = {
  ---------------
  draw = function(s)
   pals({4,5,6,14,15,7,9,10},
-       {11,0,0,3,3,11,3,3})
+       {3,0,0,11,11,3,11,11})
   an_zk2.draw(s)
  end,
  _setblt =an_shot_rnd,
@@ -1032,9 +1001,7 @@ enemies={
   s.en_charge=false -- disable charge
   s.annes={}
   s.anum=0
-  s.escnum=0 -- escaped num
-  -- s.chg_int=stage.charge
-  -- s.chg_cnt=stage.charge
+  s.boss = 1
   s.chg_int=stage[3]
   s.chg_cnt=stage[3]
   s.chg_num=0
@@ -1077,8 +1044,9 @@ enemies={
  ---
  escaped =function(s)
   s:returned()
-  s.escnum +=1
-  s.anum   -=1
+  -- s.escnum +=1
+  s:minus1()
+  --s.anum   -=1
  end,
  ---
  returned=function(s)
@@ -1107,9 +1075,28 @@ enemies={
    hud:combo(a.x,a.y,a.combo)
   end
   a.f=-1 -- dead
-  s.anum -=1
+  s:minus1()
+  -- s.anum -=1
+--[[
+  if s.anum==0 then
+   assert(false)
+   if stage.boss!=nil then
+    stage.boss()
+   end
+  end
+--]]
+--[[
   if stage.special!=nil then
    stage:special()
+  end
+--]]
+ end,
+ ---
+ minus1=function(s)
+  s.anum -=1
+  if s.anum==0 and stage.boss and s.boss then
+   s.boss=nil
+   stage.boss()
   end
  end,
  ---
@@ -1121,7 +1108,7 @@ enemies={
   for a in all(s.annes) do
    if a.f>=0 and a.y<120 then -- alive
     if collision(x,y,c,
-        a.x,a.y,t_sprite[a.s].c) then
+        a.x,a.y,t_sprite[a.s][5]) then
      return a
     else -- convoy stop
      if a.f==0 and -- convoy
@@ -1149,7 +1136,7 @@ enemies={
     if b.t == 4 then -- barrier
      player:barrier(b.x,b.y,sp[2])
     else
-     if collision(x,y,c1,b.x,b.y,sp.c) then
+     if collision(x,y,c1,b.x,b.y,sp[5]) then
       return true
      end
     end -- else
@@ -1252,18 +1239,6 @@ enemies={
   if s.anum==0 and s:is_idle() then
    return
   end
-  --[[
-  -- dance frame
-  s.dcnt=(s.dcnt+1)%10
-  if s.dcnt==9 then
-   for row=1,6 do
-    s.dance[row]+=1
-    if s.dance[row]==5 then
-     s.dance[row]=1
-    end
-   end
-  end
-  --]]
   -- update all enemies
   imin=6
   imax=1
@@ -1443,7 +1418,7 @@ player={
   s.para = max(s.para-1,0) 
   -- crush check
   if s.crush==0 and 
-     enemies:crushchk(s.x,s.y,t_sprite[26].c) 
+     enemies:crushchk(s.x,s.y,t_sprite[26][5]) 
      then
     s.en_shot = false
     s.crush = 1
@@ -1515,7 +1490,7 @@ player={
    --sprfr(s.x,s.y,ta_boom,s.crush)
    if s.crush<24 then
     putat(27+flr(s.crush/8),
-          s.x,s.y,0)
+          s.x,s.y+s.crush/4,0)
    end
   end
   -- missile
@@ -1574,7 +1549,6 @@ stars={ -- bg particles
  flow = 1,
  grid = 2,
  storm= 3,
- spin = 4,
  -- operations
  init =function(s) -- generate 64
   s.pts={} -- particles
@@ -1614,10 +1588,6 @@ stars={ -- bg particles
  _set_pts =function(s,mode)
   for p in all(s.pts) do
    p.m = mode
-   if p.m==stars.spin then -- spin
-    p.a = get_dir(oo,p)
-    p.l = get_dist(p.x,p.y,oo.x,oo.y)
-   end
   end
  end,
  
@@ -1677,17 +1647,6 @@ stars={ -- bg particles
       p.x=127
      end
     end 
-   -- for mode:4(spins) no use
-   elseif p.m==stars.spin then
-    p.a += 0.005
-    p.x = oo.x+sin(p.a)*p.l
-    p.y = oo.y+cos(p.a)*p.l
-    if not in_field(p) then
-     p.a += 0.5-(p.a*2%0.5)
-    end
-    if p.a>1 then
-     p.a -= 1
-    end
    end
   end
  end,
@@ -1703,7 +1662,7 @@ stars={ -- bg particles
    end
   end
   for i,p in pairs(s.pts) do
-   if p.m==s.flow or p.m==s.spin then
+   if p.m==s.flow then
     color(6)
     if p.f<10 then
      pset(p.x,p.y) end
@@ -1832,7 +1791,9 @@ hud={
  end,
  ---
  console =function(s,str,x,y,sec)
-  add(s.types, typestr:new(str,x,y,sec,true,11))
+  if str then
+   add(s.types, typestr:new(str,x,y,sec,true,11))
+  end
  end,
  ---
  caution =function(s)
@@ -1912,6 +1873,8 @@ stages={
   {0x12,0x3f,0x3f},
   {an_gf,an_zk2,an_zk2},
   str="evaluate",
+  boss = append_zk2s,
+ --[[
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and
@@ -1920,6 +1883,7 @@ stages={
      s.scnt+=1
    end
   end,
+ --]]
  },
  { --stage 5 
   {0x12,0x2a,0x15,0x2a},
@@ -1957,6 +1921,8 @@ stages={
   {0x1e,0x3f,0x3f},
   {an_ge,an_ge,an_ge},
   str="newtypes",
+  boss = append_dms,
+--[[
   special =function(s)
    if enemies.anum==0 and
       s.scnt==0 and 
@@ -1965,6 +1931,7 @@ stages={
     s.scnt+=3
    end
   end,
+--]]
  },
  { --stage 11 
   {0x21,0x20,0x21,0x01},
@@ -1981,6 +1948,8 @@ stages={
   {an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   str="spars",
   --stocks={an_ge,an_ge},
+  boss = append_el,
+--[[
   special =function(s)
    if enemies.anum==0 then
     append_el()
@@ -1992,6 +1961,7 @@ stages={
   --  return false end
   -- return true
   --end
+--]]
  },
  -- stock
  -- accuracy
@@ -2021,7 +1991,7 @@ scenes={
     player:init()
     player:rollout()
     score:reset()
-    stagenum=13
+    stagenum=1
     stage=stages[2]
     scene=scenes.stage:init()
    end
@@ -2029,7 +1999,7 @@ scenes={
   ---
   draw =function(s)
    map(1,0,23,40,10,1)
-   print("rev.0.9", 75,50)
+   print("rev.0.91", 71,50)
    putat(32,64,70-4,0)
    putat(26,64,70,0)
    print("hit button to start",25,90)
@@ -2044,19 +2014,14 @@ scenes={
    player.en_shot=false
    enemies.en_charge=false
    stage = stages[stagenum]
-   --[[
-   if enemies:is_clear() then
-    enemies:reset()
-    sfx(sfx_.begin,0) -- begin
-    s.reset = true
-   end
-   --]]
    if stage.back!=nil then
     stars:switchto(stage.back)
    end
+   --[[
    if stage.special!=nil then
     stage.scnt=0
    end
+   --]]
    return s
   end,
   ---
@@ -2069,18 +2034,6 @@ scenes={
   draw =function(s)
    player:draw()
    enemies:draw()
-   --[[
-   if s.reset and -- new stage 
-      stage.trn==1 and -- noiz
-      s.timer<10 then -- 1/3sec
-    --sfx(8,1)
-    for i=0,128*128-1 do
-     if rnd(5)<=2 then
-      pset(i%128,i/128,5)
-     end
-    end
-   end
-   --]]
    if stars.stat==0 then -- idle
     if enemies:is_clear() then
      enemies:reset()
@@ -2185,7 +2138,7 @@ scenes={
   draw =function(s)
    player:draw()
    enemies:draw() -- bullets
-   if stage.clear!=nil then
+   if stage.clear then
     if not stage:clear() then
      s.timer -=1
     end
