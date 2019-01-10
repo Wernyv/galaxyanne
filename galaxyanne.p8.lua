@@ -87,6 +87,8 @@ sfx_={
  extend=6,
 }
 
+function sgnz(a) return a==0 and 0 or sgn(a) end
+
 function putat(id,x,y,blink)
  local st = t_sprite[id]
  local sp = st[1]
@@ -219,13 +221,11 @@ function an_rot_r(now)
 end
 
 function an_rot_to(s,ang)
- local ts=3+flr((ang+(1/32))/(1/16))
- if s.s != ts then
-  s.s += sgn(ts-s.s)
-  return true
- else
-  return false
- end
+ local ts = 3+flr((ang+(1/32))/(1/16)) - s.s
+ local rot = sgnz(ts) * (abs(ts)>7 and -1 or 1)
+ if rot==0 then return false end
+ s.s = rot<0 and an_rot_r(s.s) or an_rot_l(s.s)
+ return true
 end
 
 function an_rot_p(s)
@@ -253,7 +253,7 @@ function an_shot_thin(s)
 end
 
 an_zk2 = {
- col=11, -- lgreen
+ col=0x4b, --11, -- lgreen
  p=3, -- score
  combo=1, -- combo ratio
  f=0, -- 0:convoy
@@ -365,15 +365,15 @@ an_zk2 = {
  _turnout =function(s)
   s.c += 1 -- turnout
   if s.c%2==0 then
+   local dx = 4-abs(12-s.c)/3
    if s.x <= 63 then -- leftside
     s.s = an_rot_l(s.s)
-    s.x -= 4-abs(12-s.c)/3
-    s.y -= (12-s.c)/2
+    s.x -= dx
    else              -- rightside
     s.s = an_rot_r(s.s)
-    s.x += 4-abs(12-s.c)/3
-    s.y -= (12-s.c)/2
+    s.x += dx
    end
+   s.y -= (12-s.c)/2
   end
   -- charge ?
   if s.s==15 then -- complete
@@ -397,8 +397,6 @@ an_zk2 = {
    if s.lc==3 then
     s.ax *= 1.5
    end
-   --if s.lc>=3 then -- 3 loops
-   -- s.f=-1 -- escaped
    if enemies.anum>4 or 
           not enemies.en_charge then
     s.f =  3 -- return
@@ -422,7 +420,7 @@ an_zk2 = {
    if s.dx==0 or 
     abs(s.vx)>=s.trnvx and
     (s.x - player.x)*s.dx>=s.mgn then
-     s.dx = sgn(player.x - s.x)
+     s.dx = sgnz(player.x - s.x)
    end
   end
   s.vx = limabs(s.vx+s.ax*s.dx, s.maxvx)
@@ -465,7 +463,7 @@ an_zk2 = {
   local rpos=enemies:restpos(s.i,s.j)
   s.x=rpos.x+enemies.x
   s.y+=2
-  if s.y>rpos.y-14 then
+  if s.y>rpos.y-18 then
    if s.i<=3 then -- left
     s.s = an_rot_l(s.s)
    else           -- right
@@ -480,7 +478,9 @@ an_zk2 = {
  end,
 
  draw =function(s)
-  pal((s.ace and 4) or 8,s.col)
+  pal(4,s.col/16)
+  pal(8,s.col%16)
+  --pal((s.ace and 4) or 8,s.col)
   putat(s.s,s.x,s.y,flr(s.m/3))
   if s.x<=-8 then
    spr(93,0,s.y-1) end
@@ -514,7 +514,7 @@ an_zk2 = {
 an_sim = {
 -- super=an_zk2,
  -- type parameters
- col = 11, -- dark green
+ col = 0x3b, -- dark green
  p   = 1, -- score
  -- for mv_sin
  ax    = 0.1, -- vx accel
@@ -543,7 +543,7 @@ an_sim = {
 an_zk1 = {
 -- super=an_zk2,
  -- type parameters
- col = 3,  -- dgreen
+ col = 0x43,  -- dgreen
  p   = 2,  -- score
  -- for fire
  fr  = 4, -- fire rate
@@ -568,8 +568,8 @@ an_zk1 = {
             abs(player.y-s.y)
    if in_field(s) and
       s.y>=80 and near(dd,1,0.2) then
-    s.tx = 3 * sgn(player.x-s.x)
-    s.ta = 0.75+0.125*sgn(s.tx)
+    s.tx = 3 * sgnz(player.x-s.x)
+    s.ta = 0.75+0.125*sgnz(s.tx)
     s.ts = 0 -- not nil
    end
   else
@@ -586,7 +586,7 @@ an_zk1 = {
 
 an_zg={
 -- super=an_zk2,
- col = 12, -- lblue
+ col = 0x4c, -- lblue
  p   =  5, -- score
  -- for fire
  fi  =  5, -- interval
@@ -646,7 +646,7 @@ an_zg={
  _setblt =function(s)
    return enemies:throw_for(
         s.x, s.y-5,  -- src
-        sgn(player.x-s.x))  -- spd/frame
+        sgnz(player.x-s.x))  -- spd/frame
  end,
 
  _turnin =function(s)
@@ -657,7 +657,7 @@ an_zg={
 
 an_gg={
  --super2=an_zg,
- col = 9,
+ col = 0x49,
  p = 10,
  fi = 30,
  fr = 5,
@@ -696,7 +696,7 @@ an_gg={
 an_gf={
 -- super=an_zk2,
  fi  = 4, -- fire interval
- col = 12, -- lblue
+ col = 0x4c, -- lblue
  p   = 4, -- score
  ax  = 0.15,
  fw  = 0.15, -- fire width
@@ -721,7 +721,7 @@ an_gf={
 an_ge={
 -- super=an_zk2,
  p   = 5, -- score
- col = 13,
+ col = 0x4d,
  ax  = 0.15,
  fr  = 15, -- fire rate
  tx  = nil, -- target-x
@@ -756,7 +756,7 @@ an_ge={
 
 an_zk2s = {
 -- super=an_zk2,
- col = 14, -- pink
+ col = 0xe8, -- pink/red
  p = 10,
  -- for charge
  dgx = false, -- dodge status
@@ -772,14 +772,19 @@ an_zk2s = {
  s =2, --20,-- '-'(no col)
  ace =true,
  ----------------------
- new = function(self,_i,_j)
+ new = function(s)
   -- inherit from type-zk
-  local obj = an_zk2:new(_i,_j)
+  local obj = an_zk2:new(1,1)
   obj._ochg = obj._charge
   obj._ochgmov = obj._chgmov
   obj.maxvx *=1.3
   obj.ax *=2
-  return instance(self,obj)
+  obj.x = player.x --127-player.x
+  obj.y = 300
+  obj = instance(s,obj)
+  enemies:append(obj,1)
+  hud:caution()
+  return obj
  end,
  ----------------------
  _turnout =function(s)
@@ -821,49 +826,49 @@ an_dm ={
  f  =1, -- turn-out
  vx =0, -- x speed
  lc =-2, -- loop counter
- s  =20,-- '-'(no col)
- col=2, -- purple
+ s  =2, --20,-- '-'(no col)
+ col=0x2a, -- purple/yellow
  p = 12,
  ace=true,
  -------------------------
- new = function(self,_i,_j,pos)
-  local obj = an_gf:new(_i,_j)
-  obj._precharge = obj._charge
-  obj = instance(self,obj)
-  obj.pos = pos
-  obj.y = 210 - obj.pos * 20
-  obj.gaia = enemies.annes[1]
+ new = function(self)
+  local obj
+  for i=1,3 do
+   obj = an_gf:new(1,1)
+   obj._precharge = obj._charge
+   obj = instance(self,obj)
+   obj.pos = i
+   obj.x = rnd(100)+16
+   obj.y = 210 + obj.pos * 30
+   obj.gaia = enemies.annes[1]
+   if i==1 then obj.col=0x28 end
+   enemies:append(obj,i)
+  end
+  hud:caution()
   return obj
  end,
  ----------------------
  _turnout =function(s) 
   s.y -= 4
-  if(s.y > -20) return
-  if s.pos==1 then
-   s:_to_charge()
-  elseif s.gaia.y==-60 then
-   s:_to_charge()
-  end
+  if(s.y > -60) return
+  s:_to_charge()
  end,
  _to_charge =function(s)
   s.f = 2 --> charge
   s.s = 15 -- ,-,
   if s.pos==1 then
    s.x = 64-30+rnd(60)
-   --s.x = 64-30+flr(rnd(60))
   else
    s.x = s.gaia.x
   end
-  s.y = -80 + s.pos*20
+  s.y = -40 --s.pos*20
   s.fc=1000
  end,
  ----------------------
  _charge =function(s)
   local tbl = {0,16,-16}
   if s.pos>1 and s.gaia.f==-1 then
-   s.fc=0
-   s.maxvx=2
-   s._charge = s._precharge
+   s.lc=3
   end
   if s.y<40 then
    s.y += s.vy*2
@@ -877,6 +882,7 @@ an_dm ={
    local prey=s.y
    s:_precharge()
    if prey>s.y then
+    s.y=-60
     s.f=1 --> turnout
    end
   end
@@ -893,9 +899,14 @@ an_el= {
  s=20,
  f=4,
  m=0,
- new = function(self,_i,_j,pos)
-  local obj={ i=_i, j=_j, idx=6*(_j-1)+_i }
-  return instance(self,obj)
+ i=1,
+ j=1,
+ idx=1,
+ new = function(self)
+  local obj
+  obj = instance(self,obj)
+  enemies:append(obj,1)
+  hud:caution()
  end,
  update = function(s)
   if player.mf!=0 and player.my>s.y and 
@@ -1075,27 +1086,13 @@ enemies={
   end
   a.f=-1 -- dead
   s:minus1()
-  -- s.anum -=1
---[[
-  if s.anum==0 then
-   assert(false)
-   if stage.boss!=nil then
-    stage.boss()
-   end
-  end
---]]
---[[
-  if stage.special!=nil then
-   stage:special()
-  end
---]]
  end,
  ---
  minus1=function(s)
   s.anum -=1
   if s.anum==0 and stage.boss and s.boss then
    s.boss=nil
-   stage.boss()
+   stage.boss:new()
   end
  end,
  ---
@@ -1226,7 +1223,7 @@ enemies={
  ---
  append=function(s,anne,pos)
   s.anum +=1
-  s.annes[pos]=a
+  s.annes[pos]=anne
   s:charged()
  end,
  ---
@@ -1682,8 +1679,6 @@ stars={ -- bg particles
     end
    end
   end
-  --print("mode "..s.mode,0,20)
-  --print("stat "..s.stat,0,30)
  end
 }
 
@@ -1722,8 +1717,13 @@ typestr={
    return
   end
   if s.k==3 then
-   map(0,1,0-(s.cnt % 8),s.y-4,17,1)
-   map(0,1,(s.cnt % 8)-8,s.y+6,17,1)
+   map(0,1,0-(s.cnt % 8),53,17,1)
+   map(0,1,(s.cnt % 8)-8,65,17,1)
+   if s.cnt % 3 > 0 then
+    for i=1,enemies.anum do
+     spr(78,enemies.annes[i].x-2,75)
+    end
+   end
   elseif s.k==4 then
    putat(35,s.x,s.y,0)
    s.y-=0.5
@@ -1756,7 +1756,6 @@ hud={
   end 
   if player.combo>0 then
    putat(35,64,0,0)
-   --print((2^player.combo),65,0)
    print(player.combo,65,0)
   end
   -- console string
@@ -1777,6 +1776,8 @@ hud={
    spr(sp,x,120)
    x -= 5
   end
+  -- debug
+  print(pcnt,0,20)
  end,
  ---
  console =function(s,str,x,y,sec)
@@ -1786,39 +1787,18 @@ hud={
  end,
  ---
  caution =function(s)
-  add(s.types, typestr:new("w a r n i n g",-1,70,2,8,3))
+  add(s.types, typestr:new("w a r n i n g",-1,58,2,8,3))
  end,
 }
 
 -----------------------------
 -- stages -------------------
-
-function append_zk2s()
- a = an_zk2s:new(1,1)
- a.x = player.x --127-player.x
- a.y = 240
- enemies:append(a,1)
- hud:caution()
- --music(music_.aces)
-end
-
-function append_dms()
- for i=1,3 do
-  a = an_dm:new(1,1,i)
-  a.x = rnd(100)+16
-  enemies:append(a,i)
-  a.gaia = enemies.annes[1]
- end
- hud:caution()
- --music(music_.aces)
-end
-
-function append_el()
+--[[function append_el()
  a = an_el:new(1,1)
  enemies:append(a,1)
  hud:caution()
 end
-
+--]]
 function stages_init()
  for s in all(stages) do
   s.back = s.back or stars.flow
@@ -1854,17 +1834,7 @@ stages={
   {0x12,0x3f,0x3f},
   {an_gf,an_zk2,an_zk2},
   str="evaluate",
-  boss = append_zk2s,
- --[[
-  special =function(s)
-   if enemies.anum==0 and
-      s.scnt==0 and
-     player.kills>=0 then --5 then
-     append_zk2s()
-     s.scnt+=1
-   end
-  end,
- --]]
+  boss = an_zk2s,
  },
  { --stage 5 
   {0x12,0x2a,0x15,0x2a},
@@ -1902,17 +1872,7 @@ stages={
   {0x1e,0x3f,0x3f},
   {an_ge,an_ge,an_ge},
   str="newtypes",
-  boss = append_dms,
---[[
-  special =function(s)
-   if enemies.anum==0 and
-      s.scnt==0 and 
-      player.kills>=5 then
-    append_dms()
-    s.scnt+=3
-   end
-  end,
---]]
+  boss = an_dm,
  },
  { --stage 11 
   {0x21,0x20,0x21,0x01},
@@ -1925,24 +1885,11 @@ stages={
   end,
  },
  {  --stage 12
-  {0x2a},--,0x15,0x2a,0x15,0x2a},
+  {0x2a,0x15,0x2a,0x15,0x2a},
   {an_gf,an_gf,an_ge,an_zk1,an_zk1 },
   str="spars",
-  --stocks={an_ge,an_ge},
-  boss = append_el,
---[[
-  special =function(s)
-   if enemies.anum==0 then
-    append_el()
-   end
-  end,
-   --return false 
-   --return stars.sfrm <= 0
-  --if stars.sfrm>0 then
-  --  return false end
-  -- return true
-  --end
---]]
+  stocks={an_ge,an_ge},
+  boss = an_el, --append_el,
  },
  -- stock
  -- accuracy
@@ -1972,7 +1919,7 @@ scenes={
     player:init()
     player:rollout()
     score:reset()
-    stagenum=11
+    stagenum=13  -- 1
     stage=stages[2]
     scene=scenes.stage:init()
    end
@@ -1990,7 +1937,6 @@ scenes={
  stage={ -- stage # call
   init =function(s)
    s.timer=0
-   s.subln=0
    s.reset=false
    player.en_shot=false
    enemies.en_charge=false
@@ -1998,11 +1944,7 @@ scenes={
    if stage.back!=nil then
     stars:switchto(stage.back)
    end
-   --[[
-   if stage.special!=nil then
-    stage.scnt=0
-   end
-   --]]
+   pcnt = 0
    return s
   end,
   ---
@@ -2049,6 +1991,7 @@ scenes={
    elseif enemies:is_clear() then
     scene=scenes.clear:init()
    end
+   pcnt += 1
   end,
   ---
   draw =function(s)
@@ -2197,10 +2140,10 @@ __gfx__
 000000000400000000000000040000000000000004000000000000040000000000000004000000000000000400000000000000000000000000bb03b0330bb000
 0000000000000000000000000000000000000000000000000000004080000000000000408000000000000040800000000000000000000000003bb03330b33000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003300000330000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000044444444400000004444444440000000444444444000000804444440000000080444444000000008044444400000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008088808000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000808080000000000
+00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000000000000000000000080800000000000
+00000044444444400000004444444440000000444444444000000804444440000000080444444000000008044444400000000000000000000008000000000000
 00080444fef4444400080444fef4444400080444e5f4444400004444444444400000444444444440000044444444444000000000aaa000000000000000000000
 0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000707aaa000000000000000000000
 0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000070a00000000000000000000000
