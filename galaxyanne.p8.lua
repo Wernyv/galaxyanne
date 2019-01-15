@@ -1,83 +1,58 @@
 pico-8 cartridge // http://www.pico-8.com
 version 15
 __lua__
---galaxyanne 0.92
+--galaxyanne 0.01r
 --by wernyv
 
------------------------------
--- tables -------------------
+-- redef
+function int(n) return flr(abs(n))*sgn(n) end
+function rup(n) return flr(abs(n)+0.5)*sgn(n) end
+function sgz(n) return (n==0) and 0 or sgn(n) end
 
-t_dnce={ -- dance frames
---x,y,s
- { 0, 0, 2},
- { 1,-1, 1},
- { 0, 0, 2},
- {-1,-1, 1},
-}
-t_coll={ -- collision pattern
- {-3,-3,4,4},-- annes
- {-3,-3,3,4},-- ship
- {-1,-4,1,1},-- enemy bullet |
- {-1,-1,1,1},-- enemy bullet *
- {-1, 0,1,4},-- players missile
-}
-t_sprite={ -- id,hflip,vflip,collisionrect
--- no l<->r u<->d
---1,2,3,4,c,
- -- in convoy
- {  6, 7, 4, 0, 1},-- ('-') stay 1
- {  0, 7, 4, 0, 1},-- |'-'| stay 2
- -- rotation 360/22.5
- { 70,10, 7, 0, 1},-- 3( =   90' fly
- { 64,10, 6, 0, 1},-- 4/'-'/ 67'
- { 38, 9, 5, 0, 1},-- 5/'-'/ 45'
- { 32, 7, 4, 0, 1},-- 6/'-'/ 22'
- {  6, 7, 4, 0, 1},-- 7|'-'|
- { 32, 7, 4, 2, 1},-- 8\'-'\ -22'
- { 38, 5, 5, 2, 1},-- 9\'-'\ -45'
- { 64, 4, 6, 2, 1},--10\'-'\ -67'
- { 70, 4, 7, 2, 1},--11 = )
- { 64, 4, 8, 3, 1},--12/,-,/ 
- { 38, 5, 9, 3, 1},--13/,-,/ -135'
- { 32, 7,10, 3, 1},--14/,-,/
- {  6, 7,10, 3, 1},--15|,-,| 180'
- { 32, 7,10, 1, 1},--16\,-,\ 
- { 38, 9, 9, 1, 1},--17\,-,\ 135' 
- { 64,10, 8, 1, 1},--18\,-,\ 
- { 70,10, 7, 0, 1},--19 ( =  90' fly
- -- no collision ver
- {  6, 7, 4, 0}, -- 20 |'-'|
- -- special
- { 96, 7, 7, 0},-- 21 24 hyde
- { 44, 7, 7, 0},-- 22 25 ball
- -- deads
- {128, 7, 7, 0},-- 23 21 dead 1
- {130, 7, 7, 0},-- 24 22 dead 2
- {132, 7, 7, 0},-- 25 23 dead 3
- -- ship
- { 14, 7,10, 0, 2},-- 26 ship
- {160, 7,10, 0},-- 27 miss1
- {162, 7,10, 0},-- 28 miss2
- {163, 7,10, 0},-- 29 miss3
- -- bullets (8x8)
- { 12, 0, 4, 0, 3},-- 30 bullet |
- { 28, 1, 2, 0, 4},-- 31 bullet *
- { 13, 0, 3, 0, 5},-- 32 misisle
- { -1, 8,13, 0, 2},-- 33 bubble
- { 46, 7,10, 0, 2},-- 34 ship(p)
- { 76, 9, 3, 0}, -- 35 x
-}
-ta_boom={
- { 10, 128, 7,7},
- { 15, 130, 7,7},
- { 20, 132, 7,7}}
+-- oo util
+function override(obj, class)
+ local k,v
+ for k,v in pairs(class) do
+  obj[k]=v
+ end
+ return obj
+end
+function underride(obj, class)
+ local k,v
+ for k,v in pairs(class) do
+  if not obj[k] then obj[k]=v end
+ end
+ return obj
+end
+function cont(v,l)
+ if type(l)!="table" then
+  return v==l
+ end
+ for a in all(l) do
+  if v==a then
+   return true
+  end
+ end
+end
 
-music_={
- warpin=0,
- warpout=2,
- sydney0079=3,
- aces=8,
-}
+-- timer util
+function tini(s)
+ s._fc=_fcnt
+end
+--[[
+function tsec(s)
+ return (_fcnt-s._fc)/30
+end
+]]
+function tcnt(s)
+ return _fcnt-s._fc
+end
+
+-- debug log
+function dlog(str)
+ printh(str,"log.txt")
+end
+
 sfx_={
  shot=0,
  charge=1,
@@ -87,2024 +62,903 @@ sfx_={
  extend=6,
 }
 
-function sgnz(a) return a==0 and 0 or sgn(a) end
+sprites = {
+ { 0,  -7, -4,  -3,-3,4,4 },
+ { 6,  -7, -4,  -3,-3,4,4 }, -- |
+ {32,  -7, -4,  -3,-3,4,4 },
+ {38,  -9, -5,  -3,-3,4,4 }, -- /
+ {64, -10, -6,  -3,-3,4,4 },
+ {70, -10, -7,  -3,-3,4,4 }, -- -
+ {14,  -7,-11,  -4,-3,4,3 }, --player
+ {13,   0, -2,  -1,-2,1,3 }, --missile
+ {12,   0, -4,  -1,-2,1,3 }, --bullet |
+ {128, -7, -7,  0,0,0,0},
+}
 
-function putat(id,x,y,blink)
- local st = t_sprite[id]
- local sp = st[1]
- if sp>=0 then -- sprite
-  local sz = 2 -- 16x16
-  if blink>0 and fget(sp,2) then
-   sp += blink*2
-  end
-  if fget(sp,0) then
-   sz = 1 -- 8x8
-  end
-  spr(sp,x-st[2],y-st[3],sz,sz,st[4]>1,st[4]%2==1)
- else
-  circ(x,y,st[2],st[3]) -- barrier
- end
-end
-
-function sprfr(x,y,tbl,frame)
- if frame>=tbl[#tbl][1] then
-  return true
- end
- for i=1,#tbl do
-  local t=tbl[i]
-  if t[1]>frame then
-   local sz=fget(t[2],0) and 1 or 2
-   spr(t[2],x-t[3],y-t[3],sz,sz)
-   break
-  end
- end
- return false
-end
------------------------------
--- application entries ------
-
-function _init()
- -- extract tables
- --t_dnce   = textract(t_dnce)
- --t_coll   = textract(t_coll)
- --t_sprite = textract(t_sprite)
- stages_init() -- set missing default
- scene=scenes.title:init()
- score=numsco:new()
- hiscore=numsco:new()
-end
-
-function _update()
- stars:update() -- bg
- scene:update() -- games
- hud:update()   -- fg
-end
-
-function _draw()
- cls()
- stars:draw()
- scene:draw()
- hud:draw()
--- debug_hud()
-end
-
------------------------------
--- globals ------------------
-stage = nil
-scene = nil
-
--- consts -------------------
-oo={x=63.5,y=63.5} -- screen centre
-
------------------------------
--- functions ----------------
-
-function limabs(_v,_w) -- adjust v to -w<=v<=w
- return mid(-_w,_v,_w)
-end
-
-function near(v,t,m)
- return (t+abs(m)>=v and v>=t-abs(m))
-end
-
-function in_range(v,mn,mx)
- return (mn<=v and v<=mx)
-end
-
-function get_dir(from,to)
- -- right=0 up=0.25 left=0.5 
- local dx = to.x-from.x
- local dy = to.y-from.y
- return atan2(dx,dy)
-end
-
-function get_dist(x1,y1,x2,y2)
- return sqrt((x1-x2)^2+(y1-y2)^2)
-end
-
-function in_field(o)
- return in_range(o.x,0,127) and
-        in_range(o.y,0,127)
-end
-
-function instance(class, obj)
- -- copy all key-value w/o 'new'
- local key
- local val
- for key,val in pairs(class) do
-  if key!="new" then
-   obj[key]=val
-  end
- end
- return obj
-end
-
-function pals(p1,p2)
- local i
- for i=1,#p1 do
-  pal(p1[i],p2[i])
- end
-end
------------------------------
--- anness -------------------
-
-function an_rot_l(now)
- local r = now+1
- if r==19 then r=3 end
- return r
-end
-
-function an_rot_r(now)
- local r = now-1
- if r==2 then r=18 end
- return r
-end
-
-function an_rot_to(s,ang)
- local ts = 3+flr((ang+(1/32))/(1/16)) - s.s
- local rot = sgnz(ts) * (abs(ts)>7 and -1 or 1)
- if rot==0 then return false end
- s.s = rot<0 and an_rot_r(s.s) or an_rot_l(s.s)
- return true
-end
-
-function an_rot_p(s)
- -- rotate to galaxip
- if(player.y > s.y)s.c+=1
- if s.c >= 5 then
-  s.c=0
-  local a = get_dir(s,player)
-  an_rot_to(s,mid(0.55,a,0.95))
- end
-end
-
-function an_shot_rnd(s)
- local a=get_dir(s,player)+rnd(s.fw)-(s.fw/2)
- a = mid(0.75-s.fw/2, a, 0.75+s.fw/2)
- return enemies:fire_for(s.x,s.y,a,3)
-end
-
-function an_shot_thin(s)
-  local v=limabs((player.x-s.x)/16,1)
-  return enemies:fire_to(
-      s.x, s.y,     -- src
-      s.x+v, s.y,--+3, -- dst
-      3)             -- spd/frame
-end
-
-an_zk2 = {
- col=0x4b, --11, -- lgreen
- p=3, -- score
- combo=1, -- combo ratio
- f=0, -- 0:convoy
-      -- 1:turn-out
-      -- 2:charge
-      -- 3:turn-in
-      -- 4:dead
-      -- 5:cascade?
-      -- 6:escape
-      -- -1:lost
- m=0, -- mabataki
- s=1, -- sprite id
- c=0, -- animation counter
- -- for move
- x=0, y=0,
- vx=0,vy=1.5, -- xy speed for charge
- ax=0.1,  -- acceleration x
- ay=0,    -- accelaration y
- dx=0,    -- direction vx (1 or -1)
- maxvx=3,
- trnvx=0, -- abs(vx) need for turn
- mgn=8,   -- turn margin
- -- for fire
- fi  = 15, -- interval
- fr  =  6, -- fire rate
- fc  =  0, -- fi counter
- fa  = 3/36, -- trigger angle(/2)
- fw  = 0.1, -- fire width
- --------------------------------
- new=function(self,_i,_j)
-  -- move on charging (sin)
-  local obj={ i=_i, j=_j, idx=6*(_j-1)+_i }
-  return instance(self,obj)
+spr0 = {
+ x=0, y=0, sp=1, mo=0, c=0,
+ new=function(s)
+  return override({},s)
  end,
- --------------------------------
- update =function(s)
-  -- blink
-  if s.m>1 then
-   s.m=(s.m+1)%9 --mb=2,3
-  elseif rnd(100)<2 then --flr(rnd(100))==5 then
-  -- assert(false)
-   s.m=3
-  end
-  -- fire interval count down
-  if(s.fc>0) s.fc-=1
-  if s.f==0 then -- convoy
-   s:_convoy()
-   if s.f==1 then -- begin charge
-    enemies:charged()
-   end
-  elseif s.f==1 then -- turnout
-   s:_turnout()
-  elseif s.f==2 then -- charge
-   -- move and rotate
-   s:_charge()
-   s:_fire()
-  elseif s.f==3 then -- return to convoy
-   s:_turnin()
-   if s.f!=3 then
-    enemies:returned()
-   end 
-  elseif s.f==4 then -- dead
-   if s.c < 6 then
-    s.s = 23 + flr(s.c/2)
-   else
-    enemies:dead(s)
-   end  
-   s.c += 1
-  elseif s.f==6 then -- escape
-   s:_escape()
-   if s.f==-1 then -- escaped
-    add(hud.types, typestr:new("lost",mid(s.x,0,107),10,1,11,2))
-    enemies:escaped()
-   end
-  end
- end,
-
- _convoy =function(s)
-  -- dance frame per i 
-  local d=t_dnce[enemies.dance[s.i]]
-  local wx=enemies.rests[s.j][s.i].x+d[1]
-           +enemies.x
-           -- +flr(enemies.x)
-  local wy=enemies.rests[s.j][s.i].y+d[2]
-  local ps=d[3]
-  if stage.stocks and
-   abs(s.y-wy)>2 then
-   s.y+=2 --sgn(wy-s.y)*2
-   s.s=22
-   return
-  end
-  s.x=wx
-  s.y=wy
-  s.s=d[3]
-  -- judge to charge
-  if enemies.en_charge then
-   local go = false
-   if not enemies:exist(s.i,s.j-1) 
-    and enemies.chg_cnt==0 
-    and rnd(5)<1 -- flr(rnd(5))==3 -- 1/5
-    then
-    s.f=1 -- turn-out
-    s.s=7 -- spr for #1
-    s.c=0 -- turnout counter
-   end
-  end
- end,
-
- _turnout =function(s)
-  s.c += 1 -- turnout
-  if s.c%2==0 then
-   local dx = 4-abs(12-s.c)/3
-   if s.x <= 63 then -- leftside
-    s.s = an_rot_l(s.s)
-    s.x -= dx
-   else              -- rightside
-    s.s = an_rot_r(s.s)
-    s.x += dx
-   end
-   s.y -= (12-s.c)/2
-  end
-  -- charge ?
-  if s.s==15 then -- complete
-   s.f =2 -- charge
-   s.vx=0 -- x speed
-   s.c =0 -- turnout counter
-   s.lc=0 -- loop counter
-   s.fc=0 -- ready to fire
-  end
- end,
-
- _charge =function(s,nm)
-  -- move
-  if not nm then
-   s:_chgmov()
-   s.x = mid(-9,s.x,136)
-  end
-  -- state change
-  if s.y>128+8 then -- loopback
-   s.lc+=1
-   if s.lc==3 then
-    s.ax *= 1.5
-   end
-   if enemies.anum>4 or 
-          not enemies.en_charge then
-    s.f =  3 -- return
-    s.y =-16 -- rewind y to top
-    s.dx=  0
-    s.s = 15 -- 
-    s.c =  0 -- turnin counter
-   else
-    -- rewind top and x adjust
-    s.y=-16
-    s.x = mid(0,s.x,120)
-   end
-  end
-  if s.lc>=3 and s.y>80 then -- escape
-   s.f = 6 -- escape
-  end
- end,
-
- _chgmov =function(s)
-  if s.y<100 then
-   if s.dx==0 or 
-    abs(s.vx)>=s.trnvx and
-    (s.x - player.x)*s.dx>=s.mgn then
-     s.dx = sgnz(player.x - s.x)
-   end
-  end
-  s.vx = limabs(s.vx+s.ax*s.dx, s.maxvx)
+ upd=function(s)
+--  lasts=s
   s.x+=s.vx
   s.y+=s.vy
-  an_rot_p(s) -- rotate to player
+  s.c=(s.c+1)%255
  end,
-
- _fire =function(s)
-  -- fire control (random)
-  if(s.fc>0) return
-  if not in_range(get_dir(s,player),
-      0.75-s.fa,0.75+s.fa) then
-   return
-  end
-  if rnd(100)<=s.fr and
-     s.y<80 then
-   if s:_setblt() then
-    s.fc=s.fi
+ drw=function(s)
+  local sp = sprites[s.sp]
+  local dx = sp[2]
+  local dy = sp[3]
+  if s.sh then dx=-15-dx end
+  if s.sv then dy=-15-dy end
+  local sz = fget(sp[1],0) and 1 or 2
+  local mo = s.mo and s.mo*sz or 0
+  if s.pl then
+   for p in all(s.pl) do
+    pal(flr(p/16),p%16)
    end
   end
- end,
-
- _escape =function(s)
-  if s.y<20 then
-   s.f=-1
-  end
-  --s.vy+=k-0.2
-  s.vx*=0.95
-  s.x+=s.vx
-  s.vy+=-0.4 --(s.vy>-8) and -0.2 or 0
-  s.y+=s.vy
-  an_rot_to(s,0.25) -- rotate to player
- end,
-
- --_setblt =an_shot_down,
- _setblt =an_shot_rnd, --thin,
-
- _turnin =function(s)
-  local rpos=enemies:restpos(s.i,s.j)
-  s.x=rpos.x+enemies.x
-  s.y+=2
-  if s.y>rpos.y-18 then
-   if s.i<=3 then -- left
-    s.s = an_rot_l(s.s)
-   else           -- right
-    s.s = an_rot_r(s.s)
-   end
-  end
-  if s.y>=rpos.y then -- to formation
-   s.y=rpos.y
-   s.f=0
-   s.s=7
-  end
- end,
-
- draw =function(s)
-  pal(4,s.col/16)
-  pal(8,s.col%16)
-  --pal((s.ace and 4) or 8,s.col)
-  putat(s.s,s.x,s.y,flr(s.m/3))
-  if s.x<=-8 then
-   spr(93,0,s.y-1) end
-  if s.x>=127+8 then
-   spr(93,128-8,s.y-1,1,1,true,false) end
+  spr(sp[1]+mo, s.x+dx,s.y+dy, sz,sz, s.sh, s.sv)
   pal()
+  --color(11)
+  --rect(s.x+sp[4],s.y+sp[5],s.x+sp[6],s.y+sp[7])
  end,
-
- hit =function(s)
-  sfx(sfx_.hit,1) -- hit
-  local b=s.p
-  if s:ischg() then -- turn in
-   enemies:rew_chg() -- rewind
-   enemies:returned()
-   --s.combo = 2^player.combo
-   s.combo = player.combo
-   b *= 4*s.combo
-  end
-  score:add(b)
-  s.c=0 -- animation counter
-  s.f=4 -- begin die sequence
- end,
-
- ischg =function(s)
-  -- turn_out or charge or turn_in
-  return 1<=s.f and s.f<=3
- end,
-}
-
--------------------------------------
-an_sim = {
--- super=an_zk2,
- -- type parameters
- col = 0x3b, -- dark green
- p   = 1, -- score
- -- for mv_sin
- ax    = 0.1, -- vx accel
- maxvx = 2, -- max vx
- mgn   = 5, -- turn margin
- vy    = 1.5, -- charge vy
- -- fore fire
- fi    = 20,
- fr    = 5, -- fire rate
- fw    = 0,
- ---------------
- new = function(self,_i,_j)
-  local obj = an_zk2:new(_i,_j)
-  return instance(self,obj)
- end,
- ---------------
- draw = function(s)
-  pals({4,5,6,14,15,7,9,10},
-       {3,0,0,11,11,3,11,11})
-  an_zk2.draw(s)
- end,
- _setblt =an_shot_rnd,
- --_setblt =an_shot_down,
-}
--------------------------------------
-an_zk1 = {
--- super=an_zk2,
- -- type parameters
- col = 0x43,  -- dgreen
- p   = 2,  -- score
- -- for fire
- fr  = 4, -- fire rate
- fw  = 0,
-
- _setblt = an_shot_rnd,
- --_setblt = an_shot_down,
- ----------------------
- new = function(self,_i,_j)
-  local obj = an_zk2:new(_i,_j)
-  --obj._ochg=obj._charge -- keep method
-  return instance(self,obj)
- end,
- ----------------------
- _charge =function(s)
-  if s.y<80 then
-   s.ts = false
-  end
-  an_zk2._charge(s,s.ts)
-  if not s.ts then
-   local dd=abs(player.x-s.x)/
-            abs(player.y-s.y)
-   if in_field(s) and
-      s.y>=80 and near(dd,1,0.2) then
-    s.tx = 3 * sgnz(player.x-s.x)
-    s.ta = 0.75+0.125*sgnz(s.tx)
-    s.ts = 0 -- not nil
-   end
-  else
-   if s.ts <= 10 then
-    s.ts += 1
-    an_rot_to(s,s.ta)
-   else
-    s.x += s.tx
-    s.y += abs(s.tx) --s.vy --*1.5
+ hit=function(s,o)
+  local p1,p2=sprites[s.sp],sprites[o.sp]
+  -- [4]xl [6]xr  [5]yu [7]yd
+  if s.en!=false and o.en!=false then
+   local gx=min(o.x+p2[6]-s.x-p1[4],s.x+p1[6]-o.x-p2[4])
+   local gy=min(o.y+p2[7]-s.y-p1[5],s.y+p1[7]-o.y-p2[5])
+   --[[
+   s.x+p1[4] <= o.x+p2[6] and
+   o.x+p2[4] <= s.x+p1[6] and
+   s.y+p1[5] <= o.y+p2[7] and
+   o.y+p2[5] <= s.y+p1[7] then
+   ]]
+   if gx>=0 and gy>=0 then
+    return true
+   elseif gy>=0 then
+    _gpx=gx
    end
   end
- end
-}
-
-an_zg={
--- super=an_zk2,
- col = 0x4c, -- lblue
- p   =  5, -- score
- -- for fire
- fi  =  5, -- interval
- fr  =  10,
- fa  =  40/360,
- -------------------------------
- new = function(self,_i,_j)
-  local obj = an_zk2:new(_i,_j)
-  return instance(self,obj)
- end,
- -------------------------------
- _convoy =function(s)
-  an_zk2._convoy(s)
-  s.s = 24
-  s.x = -100
-  s.y = -100
-  s.sqc = 0 -- sequence cnt
- end,
-
- _turnout =function(s)
-  if s.sqc==0 then -- begin
-   s.x = rnd(100)+10
-   s.y = 130
-   s.sqx = (enemies.rests[s.j][s.i].x-s.x)/30
-   s.sqy = (enemies.rests[s.j][s.i].y-s.y)/30
-  elseif s.sqc<34 then
-   s.y += s.sqy
-   s.x += s.sqx
-  else
-   s.f =2 -- charge
-   s.vx=0
-   s.c =0 -- turn counter
-   s.lc=0 -- loop counter
-   s.fc=0 -- ready to fire
-  end
-  if s.sqc<25 then
-   s.s = 21 -- "
-  elseif s.sqc<32 then
-   s.s = 22 -- (_)
-  else
-   s.s = 2
-  end
-  s.sqc += 1
- end,
-
- _charge =function(s)
-  an_zk2._charge(s)
-  s.s = 1 -- keep '-'
-  if s.y<0 and s.f==2 then
-   -- cancel charge-loop
-   s.f =  3 -- return
-   s.y =-16 -- rewind y to top
-   s.c =  0 -- turn counter
-  end
- end,
-
- _setblt =function(s)
-   return enemies:throw_for(
-        s.x, s.y-5,  -- src
-        sgnz(player.x-s.x))  -- spd/frame
- end,
-
- _turnin =function(s)
-  -- skip to convoy
-  s.f = 0 -- convoy
- end,
-}
-
-an_gg={
- --super2=an_zg,
- col = 0x49,
- p = 10,
- fi = 30,
- fr = 5,
- bc = 0, -- barrier count
- -------------------------------
- new = function(self,_i,_j)
-  local obj = an_zg:new(_i,_j)
-  return instance(self,obj)
- end,
- _charge =function(s)
-  an_zg._charge(s)
-  s.bc = max(0,s.bc-1)
-  if s.y>100 and
-   enemies.en_charge then
-   s.vy,s.vx = -4,0
-  elseif s.y<30 and 
-         s.vy<1.5 then
-   s.vy += 0.5
-  end
-  if s.vy==0 then
-   local a=get_dir(s,player)
-   enemies:fire_for(s.x,s.y,
-                a,4,4)
-   s.bc=40
-  end
- end,
- draw =function(s)
-  an_zk2.draw(s)
-  if s.bc==0 and s.s!=21 then
-   circ(s.x,s.y+2,10,13)
-   player:barrier(s.x,s.y+2,10)
-  end
- end,
-}
-
-an_gf={
--- super=an_zk2,
- fi  = 4, -- fire interval
- col = 0x4c, -- lblue
- p   = 4, -- score
- ax  = 0.15,
- fw  = 0.15, -- fire width
- ------------------------------
- new = function(self,_i,_j)
-  local obj = an_zk2:new(_i,_j)
-  obj.trnvx = obj.maxvx
-  return instance(self,obj)
- end,
-
- _fire =function(s)
-  -- fire control (random)
-  if(s.fc>0 or s.y>80) return
-  if abs(s.vx)<=0.6 then
-   if s:_setblt() then
-    s.fc=s.fi
-   end
-  end
- end,
-}
-
-an_ge={
--- super=an_zk2,
- p   = 5, -- score
- col = 0x4d,
- ax  = 0.15,
- fr  = 15, -- fire rate
- tx  = nil, -- target-x
- -------------------------
- new = function(self,_i,_j)
-  local obj = an_zk2:new(_i,_j)
-  return instance(self,obj)
- end,
- -------------------------
- _chgmov =function(s)
-  if s.vx==0 then
-   s.tx = player.x +
-     32*sgn(player.x-s.x)
-   s.ax = abs(s.ax) *
-     sgn(s.tx-s.x)
-  end
-  if s.tx and 
-     abs(s.vx*s.vx/s.ax)/2 >
-     abs(s.x-s.tx) then
-   s.ax *=-1
-   s.tx = nil
-  end
-  s.vx += s.ax
-  if abs(s.vx)<abs(s.ax) then
-   s.vx=0 end
-  s.vx = limabs(s.vx,s.maxvx)
-  s.x+=s.vx
-  s.y+=s.vy
-  an_rot_p(s) -- rotate to player
- end,
-}
-
-an_zk2s = {
--- super=an_zk2,
- col = 0xe8, -- pink/red
- p = 10,
- -- for charge
- dgx = false, -- dodge status
- dgc = 3, -- dodge counter
- vy  = 1.5,  -- charge vy
- fr  = 10, -- fire rate
- -- special init
- f =1, -- turn-out
- vx=0, -- x speed
- c =0, -- turn counter
- lc=0, -- loop counter
- fc=0, -- ready to fire
- s =2, --20,-- '-'(no col)
- ace =true,
- ----------------------
- new = function(s)
-  -- inherit from type-zk
-  local obj = an_zk2:new(1,1)
-  obj._ochg = obj._charge
-  obj._ochgmov = obj._chgmov
-  obj.maxvx *=1.3
-  obj.ax *=2
-  obj.x = player.x --127-player.x
-  obj.y = 300
-  obj = instance(s,obj)
-  enemies:append(obj,1)
-  hud:caution()
-  return obj
- end,
- ----------------------
- _turnout =function(s)
-  s.y -= 4
-  if s.y <= -20 then
-   s.x,s.y = 10,-20
-   s.f = 2 -- charge
-   s.s = 15 -- ,-,
-  end
- end,
- _chgmov =function(s)
-  s:_ochgmov() -- inherit
-  local mx=player.mx
-  local my=player.my
-  local dx=mx-s.x
-  if s.dgc>0 and 
-    not s.dgx and
-    in_range(my-s.y,10,20) and
-    abs(dx)<10 then --and
-   s.dgx = true
-   s.vx = s.maxvx * sgn(-dx)
-  end
-  if s.dgx and my<s.y then
-    s.gdx = false
-    s.dgc -=1
-  end
- end,
- _setblt =function(_s,_b)
-  local v=limabs((player.x-_s.x)/16,3)
-  enemies:fire_to(_s.x,_s.y,
-          player.x,player.y,
-          3,_b)
- end
-}
-
-an_dm ={
--- super=an_gf,
- -- special init
- f  =1, -- turn-out
- vx =0, -- x speed
- lc =-2, -- loop counter
- s  =2, --20,-- '-'(no col)
- col=0x2a, -- purple/yellow
- p = 12,
- ace=true,
- -------------------------
- new = function(self)
-  local obj
-  for i=1,3 do
-   obj = an_gf:new(1,1)
-   obj._precharge = obj._charge
-   obj = instance(self,obj)
-   obj.pos = i
-   obj.x = rnd(100)+16
-   obj.y = 210 + obj.pos * 30
-   obj.gaia = enemies.annes[1]
-   if i==1 then obj.col=0x28 end
-   enemies:append(obj,i)
-  end
-  hud:caution()
-  return obj
- end,
- ----------------------
- _turnout =function(s) 
-  s.y -= 4
-  if(s.y > -60) return
-  s:_to_charge()
- end,
- _to_charge =function(s)
-  s.f = 2 --> charge
-  s.s = 15 -- ,-,
-  if s.pos==1 then
-   s.x = 64-30+rnd(60)
-  else
-   s.x = s.gaia.x
-  end
-  s.y = -40 --s.pos*20
-  s.fc=1000
- end,
- ----------------------
- _charge =function(s)
-  local tbl = {0,16,-16}
-  if s.pos>1 and s.gaia.f==-1 then
-   s.lc=3
-  end
-  if s.y<40 then
-   s.y += s.vy*2
-  elseif s.y<44 then
-   enemies:fire_to(s.x,s.y,
-       player.x+tbl[s.pos],
-       player.y, 3)
-   s.y += s.vy*2
-   s.vx = s.maxvx*sgn(rnd(2)-1)
-  else
-   local prey=s.y
-   s:_precharge()
-   if prey>s.y then
-    s.y=-60
-    s.f=1 --> turnout
-   end
-  end
- end,
-}
-gcount = 0
-an_el= {
- x=63,
- y=40,
- vx=0,vy=0,
- ax=0,ay=0,
- tx=63,ty=0,
- ox=0,nx=0, --debug
- s=20,
- f=4,
- m=0,
- i=1,
- j=1,
- idx=1,
- new = function(self)
-  local obj
-  obj = instance(self,obj)
-  enemies:append(obj,1)
-  hud:caution()
- end,
- update = function(s)
-  if player.mf!=0 and player.my>s.y and 
-    mid(player.mx,s.x-5,s.x+5)==player.mx then
-   s.tx = s.x + 20 * sgn(s.x - player.mx)
-  end
-  s:ease()
- end,
- draw = function(s)
-  print(s.ttd,0,64)
-  print("tx  "..s.tx,0,64+8)
-  print("vx  "..s.vx,0,64+16)
-  print("ax  "..s.ax,0,64+24)
-  an_zk2.draw(s)
-  print("ox  "..s.ox,0,64+32)
-  print("nx  "..s.nx,0,64+40)
-  print("gcnt"..player.mx,0,64+56)
- end,
- ease = function(s)
-  -- p:position v:speed[pixel/frame] a:accela[pixel/frame^2] t:target-p
-  -- tts = v[current pix/frm] / a[<0 pix/(frm*frm)] [frame to v==0]
-  -- ttd = v * tts / 2 = (v^2 / a) / 2 = v^2 / 2a
-  -- if ttd > t-p then a *= -1
-  s.ax = sgn(s.tx - s.x) * 0.08
-  if abs(s.x - s.tx) < 1.0 then
-   s.tx = s.x
-   s.ax = 0
-   s.vx = 0
-  else
-   s.ttd = s.vx * s.vx / (2 * abs(s.ax))
-   if s.ttd >= abs(s.x - s.tx) then
-    s.ax *= -1
-   end
-  end
-  s.ox = s.x
-  s.vx += s.ax
-  s.x += s.vx
-  s.nx = s.x
- end,
- cntup = function(s)
-  s.cnt = s.cnt+1
-  --gcount += 1
- end
-}
--------------------------------------
-function collision(x1,y1,c1,x2,y2,c2)
- if c1==nil or c2==nil then
   return false
- end
- c1 = t_coll[c1]
- c2 = t_coll[c2]
- if x1+c1[1] <= x2+c2[3] and
-    x2+c2[1] <= x1+c1[3] and
-    y1+c1[2] <= y2+c2[4] and
-    y2+c2[2] <= y1+c1[4] then
-  return true
- end
- return false
-end
-
------------------------------
--- enemies ------------------
-
-ij2idx=function(i,j)
- return (j-1)*6+i
-end
-
-enemies={
- ---
- anum=0,          -- anne lives
- en_charge=false, -- enable charge
- chg_cnt=0,
- chg_num=0,
- annedead ={f=-1},
- dummyanne={f=-2}, -- 666
- dcnt=1,
- dance={1,2,3,4,1,2},
- dcnt=1, -- dance step cnt
- x=0,    -- convoy x offset
- vx=0.3, --0.2, -- x speed
- ---
- init=function(s)
-  s.annes = {}
-  -- init rest positions
-  s.rests = {}
-  for j=1,5 do
-   rr={}
-   for i=1,6 do
-    rr[i] = { x=11+7+(i-1)*18,
-              y= 8+7+(j-1)*14}
-   end
-   s.rests[j]=rr
-  end
-  -- init bullets
-  s.bullets={}
-  s.anum = 0
  end,
- ---
- reset=function(s)
-  -- reset convoy status
-  s.x=0   -- convoy x
-  s.stop=nil
-  s.en_charge=false -- disable charge
-  s.annes={}
-  s.anum=0
-  s.boss = 1
-  s.chg_int=stage[3]
-  s.chg_cnt=stage[3]
-  s.chg_num=0
-  if stage.stocks then
-   s.stidx = {0,0,0,0,0,0}
+ dist=function(s,o)
+  return sqrt((s.x-o.x)^2+(s.y-o.y)^2)
+ end,
+}
+
+ship = {
+ x=64, y=119,
+ vx=0, vy=-3,
+ sp=7,
+ ini=function(s)
+  underride(s,spr0)
+  s.en=false
+  dlog("ini:en=false")
+  s.s=2
+  s.m=missile:new()
+ end,
+ --[[
+ new=function(s)
+  s.en=false
+  s.s=2
+  return override(spr0:new(),s)
+ end,
+ ]]
+ upd=function(s)
+  if s.y<119 then -- rollout complete
+   s.y,s.vy = 119,0
   end
-  local sq = 1 -- sequencial
-  local cv = stage[2] -- .types
-  local fm = stage[1] -- .forms
-  for j=1,#cv do
-   for i=1,6 do
-    sq=(j-1)*6+i
-    if band(fm[j],0x40/(2^i))!=0 then
-     local a = s:launch(cv[j],i,j)
-     s.chg_num +=1
-    else
-     s.annes[sq] = s.dummyanne
+  if s.en then
+   if btn(0) then s.x=max(5,s.x-2)   end
+   if btn(1) then s.x=min(122,s.x+2) end
+   if btn(4) then
+    if s.b4==0 then
+     s.b4=1
+     s.m:shot()
     end
+   else s.b4=0 end
+  end
+  s.m:upd()
+  if s.s==1 then --miss
+   --s.vy+=0.1
+   s.sp=10
+   s.mo=s.c/5 --s.c%5
+   if s.c==15 then
+    s.s=2 -- out of screen
    end
   end
-  s.bottom=#cv
+  spr0.upd(s)
  end,
- ---
- exist=function(s,i,j)
-  if j<1 then
-   return false -- over top
+ drw=function(s)
+  s.m:drw()
+  if s.s<2 then
+   spr0.drw(s)
   end
-  if s.annes[ij2idx(i,j)].f!=0 then
-   return false -- dead or fly
+ end,
+ rout=function(s)
+  if rest>0 and s.s==2 then
+   rest-=1
+   s.x,s.y=63,136
+   s.vy=-4
+   s.sp=7
+   s.mo=0
+   s.s=0
   end
-  return true -- exist
+  s.en=true
+  dlog("rout:en=true")
  end,
- ---
- charged =function(s)
-  s.chg_num+=1
-  s.chg_cnt=s.chg_int
-  sfx(sfx_.charge,0)
-  s.charge_snd=true
+ miss=function(s)
+  s.c=0
+  s.s=1 -- miss
+  s.vy=0.1
+  s.en=false -- disable
+  dlog("rmiss:en=false")
  end,
- ---
- escaped =function(s)
-  s:returned()
-  -- s.escnum +=1
-  s:minus1()
-  --s.anum   -=1
+ idle=function(s)
+  return s.s!=1 and s.m.st==nil
  end,
- ---
- returned=function(s)
-  if s.chg_num > 0 then
-   s.chg_num-=1
-   if s.chg_num==0 then
-    s.chg_cnt = s.chg_int/3
-    if s.charge_snd then
-     sfx(sfx_.charge,0,20)
-     s.charge_snd=false
-    end
+}
+
+missile = {
+ sp=8,
+ vx=0, vy=-4,
+ new=function(s)
+  return override(spr0:new(),s)
+ end,
+ upd=function(s)
+  if s.st then
+   spr0.upd(s)
+   if s.y<-5 then
+    s.st=nil
+    _cmb=1
    end
+  elseif ship.en then
+   s.x,s.y = ship.x,ship.y-6
+  else
+   s.y=200
   end
  end,
- ---
- restpos=function(s,i,j)
-  return s.rests[j][i]
- end,
- ---
- dead=function(s,a)
-  if s.chg_int >= 5 then
-   s.chg_int -= 1
-  end
-  if a.combo>1 then
-   add(hud.types, typestr:new(""..a.combo,a.x,a.y,.5,6,4))
-  end
-  a.f=-1 -- dead
-  s:minus1()
- end,
- ---
- minus1=function(s)
-  s.anum -=1
-  if s.anum==0 and stage.boss and s.boss then
-   s.boss=nil
-   stage.boss:new()
+ shot=function(s)
+  if s.st==nil then
+   s.st = 1
+   sfx(sfx_.shot,1) --shot
   end
  end,
- ---
- rew_chg=function(s)
-  s.chg_cnt = s.chg_int
+}
+
+bullet={
+ sp=9,
+ new=function(s,x,y,vx,vy)
+  local o=override(spr0:new(),s)
+  o.x,o.y,o.vx,o.vy=x,y,vx,vy
+  return o
  end,
- ---
- hitrect=function(s,x,y,c)
-  for a in all(s.annes) do
-   if a.f>=0 and a.y<128 then -- alive
-    if collision(x,y,c,
-        a.x,a.y,t_sprite[a.s][5]) then
-     return a
-    else -- convoy stop
-     if a.f==0 and -- convoy
-        y==mid(a.y+2,y,a.y-2) and -- same y
-        --12<=abs(a.x-x) then -- near x
-        sgn(x-a.x)==sgn(s.vx) and -- same side
-        abs(x-a.x)<10 then -- near x
-        s.stop = true
+ drw=function(s)
+  spr0.drw(s)
+--  line(s.x,s.y,s.x+s.vx*100,s.y+s.vy*100)
+--  print(""..s.vx,s.x+5,s.y-5)
+--  print(""..s.vy,s.x+5,s.y+1)
+ end,
+}
+convoy={
+ dc=0,  -- dance counter
+ ci=40, -- charge interval init (stage matter)
+ ini=function(s)
+  s.x,s.vx = 0,-1
+  s.ci = 0
+  s.ar={}
+  s.br={}
+  tini(s)
+  s.en=false
+  s.go=true
+ end,
+ upd=function(s)
+  s.ci+=1
+  s.dc = (s.dc+0.1)%4
+  local i,a
+  if tcnt(s)%4==0 and s.go then s.x+=s.vx end
+  s.al=0 --alives
+  s.ac=0 --charges
+  for i,a in pairs(s.ar) do
+   a.px = ((i-1) % 6)*16+18 + s.x
+   a.py = flr((i-1)/6)*14+15
+   if a.md>0 then
+    s.al+=1
+    if a.px<6   then s.vx=1 end
+    if a.px>120 then s.vx=-1 end
+    --if s.ci>=stage[_stn].ci then
+    if s.ci>=stage.ci then
+     if s:noceil(a) and rnd(30)<1 and s.en then
+      a:tochg()
+      s.ci=0 
      end
     end
+    a:upd()
+    if a.md==2 then s.ac+=1 end -- in convoy
    end
   end
-  return nil
+  if s.ac==s.al then sfx(-1,0) end
+  for b in all(s.br) do
+   b:upd()
+   if b.y>130 then del(s.br,b) end
+  end
+  if 0<s.al and s.al<4 and s.en then
+   s.lp=true  -- loop charging
+   stage.ci=2 -- rapid
+  else
+   s.lp=false
+  end
  end,
- ---
- crushchk=function(s,x,y,c1)
-  -- vs annes
-  if s:hitrect(x,y,c1)!=nil then
+ noceil=function(s,a)
+  if a.n<6 or s.ar[a.n+1-6].md<=0 then -- dead:0, dummy:-1
    return true
   end
-  -- vs bullets
-  for b in all(s.bullets) do
-   --if b.act then -- is active
-    local sp = t_sprite[b.t+29]
-    if b.t == 4 then -- barrier
-     player:barrier(b.x,b.y,sp[2])
-    else
-     if collision(x,y,c1,b.x,b.y,sp[5]) then
-      return true
-     end
-    end -- else
-   --end
-  end
   return false
  end,
- ---
- bullet=function(s,t,x,y,vx,vy,ax,ay,mx,my)
-  b={}
-  b.t = t -- type(spr,collision)
-  b.x, b.y = x, y  -- locates
-  b.vx,b.vy= vx,vy -- speeds
-  b.ax,b.ay= ax,ay -- accels
-  b.mx,b.my= mx,my -- max-speeds
-  add(s.bullets,b)
-  return b
- end,
- ---
- fire_to=function(s,x,y,tgx,tgy,spd)
-  -- type 1: no accel, straight
-  local dst = get_dist(tgx,tgy,x,y)
-  return s:bullet(1,x,y,
-           (tgx-x)*spd/dst,
-           (tgy-y)*spd/dst,
-           0,0,0,0)
- end,
- ---
- throw_for=function(s,x,y,vx)
-  -- type 2: throw up
-  return s:bullet(2,x,y,vx,-2,
-                  0,0.2,0,3)
- end,
- ---
- fire_for=function(s,x,y,ang,spd,typ)
-  typ = typ or 1
-  -- type 3: fire angle(0:down 0.25:right)
-  local vy = spd*sin(ang)
-  local vx = spd*cos(ang)
-  return s:bullet(typ,x,y,vx,vy,
-           0,0,0,0)
- end,
- ---
- drop=function(s,idx)
-  local t = idx+6
-  while t <= s.bottom*6 do
-   if s.annes[t].f>=0 then
-    return
-   end
-   if s.annes[t].f==-1 then
-    s.annes[t]=s.annes[idx]
-    s.annes[t].j=flr((t-1)/6)+1
-    s.annes[t].idx = t
-    s.annes[idx]=s.annedead
-   end
-   t +=6
-  end
- end,
- ---
- supply=function(s)
-  for i,v in pairs(s.stidx) do
-   if v<#stage.stocks then
-    local j=0
-    for p=i,s.bottom*6,6 do
-     j +=1
-     if s.annes[p].f>=0 then
-      break
-     end
-     if s.annes[p].f==-1 then
-      s.stidx[i]+=1
-      s:launch(stage.stocks[s.stidx[i]],i,j)
-      s.chg_num +=1
-      break
-     end
-    end
-   end
-  end
- end,
- ---
- launch=function(s,t,i,j,noc)
-  local p=t:new(i,j) 
-  s.annes[ij2idx(i,j)]=p
-  s.anum += 1
-  p.s,p.f = 7,3 -- (,-,),turnin
-  p.y = -10*p.y
-  return p
- end,
- ---
- append=function(s,anne,pos)
-  s.anum +=1
-  s.annes[pos]=anne
-  s:charged()
- end,
- ---
- missed=function(s)
-  s.pmissed=true
- end,
- ---
- update=function(s)
-  if s.anum==0 and s:is_idle() then
-   return
-  end
-  -- update all enemies
-  imin=6
-  imax=1
-  for a in all(s.annes) do
-   if a.f>=0 then -- active
-    imin=min(imin,a.i)
-    imax=max(imax,a.i)
-    if s.pmissed and a.ace then
-     a.lc = 3
-    end
-    if stage.stocks then
-     s:drop(a.idx)
-    end
-    a:update()
-   end
-  end
-  if stage.stocks then
-   s:supply()
-  end
-  s.pmissed=false
-  -- update all bullets
-  for b in all(s.bullets) do
-   --if b.act then -- is active
-    b.x+=b.vx
-    b.y+=b.vy
-    b.vx += b.ax
-    b.vy += b.ay
-    if not in_field(b) then
-     del(s.bullets,b)
-     --b.act=false -- deactive
-    end
-   --end
-  end
-  -- dance frame
-  s.dcnt=(s.dcnt+1)%10
-  if s.dcnt==9 then
-   for row=1,6 do
-    s.dance[row]+=1
-    if s.dance[row]==5 then
-     s.dance[row]=1
-    end
-   end
-  end
-  if s.stop!=true then
-   -- convoy wave
-   s.x += s.vx
-   if s.x<=-s.rests[1][imin].x+10 then
-    s.vx = abs(s.vx)
-   elseif s.x>=127-s.rests[1][imax].x-10 then
-    s.vx = -abs(s.vx)
-   end
-  end
-  -- charge interval
-  s.chg_cnt = max(0, s.chg_cnt-1)
- end,
- ---
- draw=function(s)
-  -- bullets
-  for b in all(s.bullets) do
-   --if b.act then -- active
-    putat(29+b.t, b.x,b.y,0)
-   --end
-  end
-  -- enemies
-  for a in all(s.annes) do
-   if a.f>=0 then 
+ drw=function(s)
+  local i,a
+  for i,a in pairs(s.ar) do
+   if a.md>0 and a:fly()==false then
     a:draw()
    end
   end
-  --pal(8,8)
-  --if s.stop!=nil then
-  -- print("stop",64,64)
-  --end
+  for i,a in pairs(s.ar) do
+   if a.md>0 and a:fly() then
+    a:draw()
+   end
+  end
+  for b in all(s.br) do
+   b:drw()
+  end
+  if not s.go then
+   print("stop",64,64,8)
+  end
  end,
- ---
- is_clear=function(s)
-  return s.anum==0
+ setup=function(s)
+  local i,j
+  local n=0
+  s.ar={}
+  --local _st=stage[_stn]
+  for j=1,4 do
+   local b=0x20
+   for i=1,6 do
+    --if #_st.fm>=j and band(b,_st.fm[j])==b then
+    if #stage.fm>=j and band(b,stage.fm[j])==b then
+     --s.ar[#s.ar+1] = _st.ty[j]:new(n)
+     s.ar[#s.ar+1] = stage.ty[j]:new(n)
+    else
+     s.ar[#s.ar+1] = {md=-1}
+    end
+    b/=2
+    n+=1
+   end
+  end
+  s.x,s.vx = 0,-1
+  tini(s)
+  s.en=false
  end,
- ---
- is_idle =function(s)
-  return (s.anum==0 or
-         s.chg_num==0) and
-         #s.bullets==0
- end
+ shot=function(s,b)
+  s.br[#s.br+1]=b
+ end,
+ idle=function(s)
+  return s.al==s.ac and #s.br==0
+ end,
 }
 
------------------------------
--- score --------------------
-
-numsco={
- new =function(s)
-  o={hi=0,lo=0,cs=false,md=true}
-  o.add=s.add
-  o.str=s.str
-  o.reset=s.reset
-  o.cmp=s.cmp -- sgn(s-o)
+an_0 = {
+ x=0,  y=0,
+ vx=0, vy=0,
+ sp=1, mo=0, rt=0,
+ bl=0, 
+ ct=0,  -- multi counter
+ cy=1.2,-- chg vy
+ ax=0.1,-- x_accel
+ mx=3,  -- max vx
+ tx=8,  -- turn margin
+ tv=2,  -- turn enable vx
+ pt=1,  -- pts(convoy).
+ ff=30, -- fire freq
+ ft=15, -- fire trig
+ new = function(s,n)
+  s.n=n
+  s.md=1
+  s.om=0
+  return override(spr0:new(),s)
+ end,
+ upd=function(s)
+  if s.om!=s.md then 
+   tini(s) 
+  end
+  --s.ct = (s.om!=s.md) and 0 or s.ct+1
+  local nm=s.md
+  if s.md==1 then     -- 1:turn in
+   s:_tin()
+  elseif s.md==2 then -- 2:convoy
+   s:_cvy()
+  elseif s.md==3 then -- 3:turn out
+   s:_tout()
+  elseif s.md==4 then -- 4:charge
+   s:_chg()
+  elseif s.md==5 then -- 5:escape
+   s:_esc()
+  elseif s.md==6 then -- 7:drop
+  elseif s.md==7 then -- 6:hit
+   s:_hit()
+  -- 0:dead
+  -- -1:dummy
+  end
+  s._anim(s)
+  spr0.upd(s)
+  s.om=nm
+ end,
+ fly=function(s)
+  return s.md!=2 and s.md!=6 and s.md!=0
+ end,
+ tochg = function(s)
+  if s.md==2 then
+   s.md=3
+  end
+ end,
+ _tin = function(s)
+  if s.om!=s.md then
+   s.rt = 8
+   s.vx = 0
+   s.y,s.vy = -8,2
+   s.lc = 0  -- loop counter
+  end
+  s.x = s.px
+  if s.y >= s.py and s.py+10 > s.y then
+   s.md=2
+  elseif s.py-16 < s.y then
+   s.rt-=1 --flr((s.py-s.y)/3)
+  end
+ end,
+ _cvy = function(s)
+  s.rt=-1
+  s.x,s.y = s.px,s.py
+  s.sp=1
+  local dc=(flr(convoy.dc)+(s.n%6))%4
+  if dc%2==1 then
+   s.y-=1
+   s.x+=(dc==1 and -1 or 1)
+   s.sp=2
+  end
+ end,
+ _tout=function(s)
+  if s.md!=s.om then
+   sfx(sfx_.charge,0)
+   s.rt=0
+  end
+  local v=sgn(s.n%6-3)  -- L/R
+  s.rt=((s.rt*2+v)/2+16) % 16  -- +-0.5 per frame range:0..15
+  s.vx=-sin(s.rt/16)*2
+  s.vy=-cos(s.rt/16)*2
+  if s.rt==8 then
+   s.rt=8
+   s.md=4
+  end
+ end,
+ _chg = function(s)
+  if s.om!=s.md then --init
+   s.vx,s.ax=0,abs(s.ax)*sgn(ship.x-s.x)
+   s.vy,s.ay=s.cy,0
+   s.rt=8
+  end
+  local dx=s.x-ship.x
+  if sgn(dx)==sgn(s.ax) and abs(dx)>s.tx and abs(s.vx)>=s.tv then
+    s.ax=-s.ax
+  end
+  s.vx = mid(-s.mx, s.ax+s.vx, s.mx)
+  if s.y>128+8 then
+   if not convoy.lp then
+    s.md=1
+   else
+    s.y=-16
+    s.lc+=1
+   end
+  end
+  -- if tcnt(s)%20==10 then
+  if cont(tcnt(s)%s.ff,s.ft) then
+   s:_fire()
+  end
+  s:_rotp(ship)
+  if s.lc>=3 and s.y>80 then
+   s.md=5   -- escape
+  end
+ end,
+ _esc = function(s)
+  s.ax=0
+  s.vx*=0.7
+  s.vy=max(-5,s.vy-0.4)
+  if tcnt(s)%2==1 and s.rt%16!=0 then
+   s.rt+=sgn(s.rt-8)
+  end
+  if s.y<-8 then
+   _fg:str("lost",mid(s.x,0,107),6,3,20,1,0.5)
+   --str "lost"
+   s.md=0
+  end
+ end,
+ _hit = function(s)
+  local cnt = tcnt(s)
+  if cnt==0 then sfx(sfx_.hit,1) end
+  s.rt=-1
+  s.sp=10
+  s.vx,s.vy,s.ax,s.ay=0,0,0,0
+  s.mo=flr(cnt/2)
+  if cnt>=6 then s.md=0 end
+ end,
+ _rotp = function(s,o,d)
+  if d==nil then d=0.25 end
+  if tcnt(s)%5==4 then 
+   local a=atan2(o.x-s.x, o.y-s.y)
+   a=(1+d-a)%1
+   a=(rup(a*16)+16)%16
+   s.rt+=sgz(a-s.rt)
+   if o==ship then s.rt=mid(5,s.rt,11) end
+  end
+ end,
+ _fire=function(s)
+  convoy:shot(bullet:new(s.x,s.y,0,2))
+ end,
+ draw = function(s)
+  -- 0 0,-,-
+  -- 1 1,-,-
+  -- 2 2,-,-
+  -- 3 3,-,-
+  -- 4 4,-,-
+  -- 5 3,v,-
+  -- 6 2,v,-
+  -- 7 1,v,-
+  -- 8 0,v,-
+  -- 9 1,v,h
+  -- A 2,v,h
+  -- B 3,v,h
+  -- C 4,-,h
+  -- D 3,-,h
+  -- E 2,-,h
+  -- F 1,-,h
+  if s.rt>=0 then -- rot to sp
+   local r=rup(s.rt) % 16
+   s.sv = 5<=r and r<=11
+   s.sh = 9<=r and r<=15
+   if r>=8 then r=r-8 end
+   if r>=5 then r=8-r end
+   s.sp = 2+r
+  end
+  spr0.drw(s)
+  if s.x<=-8 then spr(93,0,s.y-1) end
+  if s.x>=135 then spr(93,120,s.y-1,1,1,true,false) end
+ end,
+ _anim = function(s)
+  if mid(1,s.md,6)==s.md then
+   if s.bl==0 then
+    if rnd(100)<1 then s.bl=6 end
+   else
+    s.bl=(s.bl+4)%30
+   end
+   s.mo = flr(s.bl/10)
+  end
+ end,
+}
+an_1 = {
+ new=function(s,i)
+  s.pl={0xf4}
+  return override(an_0:new(i),s)
+ end,
+ draw=function(s)
+  --pal(15,4)
+  an_0.draw(s)
+  --pal()
+ end,
+ _fire=function(s)
+  local a=step(angl(s,ship),1/24)
+  if abs(a)<0.120 then
+   local vx,vy=vect(a,2.5)
+   dlog("a:"..a.." vx:"..vx.." vy:"..vy)
+   convoy:shot(bullet:new(s.x,s.y,vx,vy))
+  end
+ end,
+}
+function step(v,s)
+ if v>=0.5 then v=-(1-v) end
+ v += sgn(v)*(s/2)
+ return int(v/s)*s
+end
+function angl(s,d)
+ return atan2(d.y-s.y,s.x-d.x)
+end
+function vect(a,l)
+ local x,y=-sin(a),cos(a)
+ return x*l,y*l
+end
+bgp = {
+ m=0, -- stars/grid/warp
+ new=function(s,i)
+  o=override({},s)
+  o.i=i
+  o.x,o.y = flr(rnd(128)),flr(rnd(128))
+  o.vy=(rnd(3)+1)/2
+  o.b=flr(rnd(16))
+  o.gx,o.gy=(i%8)*16+8,flr(i/8)*16+8
   return o
  end,
- ---
- reset =function(s)
-  s.hi,s.lo = 0,0
-  s.md=true
-  s.ext=500 --5000pts
- end,
- ---
- cmp =function(s,o)
-  r = sgn(s.hi-o.hi)*2+sgn(s.lo-o.lo)
-  return r
- end,
- ---
- add =function(s,p)
-  if s.cs then
-   return --counter stop
+ upd=function(s)
+  s.b=(s.b+1)%15
+  s.y+=s.vy
+  if s.y>128 then
+   s.y=0
+   s.m=_bg.m
   end
-  s.lo+=p
-  if s.lo>9999 then
-   s.hi+=1
-   s.lo-=10000
-   if s.hi>9 then
-    s.hi=9
-    s.lo=9999
-    s.cs=true
-   end
-  elseif s.lo<0 then
-   s.hi-=1
-   s.lo+=10000
-   if s.hi<0 then
-    s.hi=0
-    s.lo=0
+ end,
+ drw=function(s)
+  if s.m==0 then
+   if s.b<10 then
+    pset(s.x,s.y,6)
    end
   end
-  if s.lo>=s.ext then
-   s.ext*=2 --5000/10000/20000/...
-   player:extend()
+  if s.m==1 then
+   pset(s.gx,(s.gy+_bg.c)%128,3)
   end
-  s.md=true
- end,
- ---
- str =function(s)
-  if s.md then -- modified
-   local st = ""..s.lo.."0"
-   if s.hi>0 then
-    s.st = ""..s.hi..sub("000",1,5-#st)..st
-   else
-    s.st = sub("    ",1,6-#st)..st
-   end
-   s.md=false
-  end
-  return s.st
  end,
 }
-
------------------------------
--- player -------------------
-
-player={
- rest=0,
- x=0,
- y=0,
- ---
- init =function(s)
-  s.rest=4
-  s.crush=0
-  s.combo=1
-  s.mf=0 -- missile 0:rest 1:shot 2:reflect
+_bg={
+ ini=function(s)
+  s.m=0
+  s.p={}
+  s.c=0
+  s.d=0
+  for i=1,64 do
+   s.p[i]=bgp:new(i)
+  end
  end,
- ---
- extend =function(s)
-  s.rest +=1
-  sfx(sfx_.extend,1)
+ upd=function(s)
+  if s.t==0 then
+   for p in all(s.p) do
+    p.m=s.m
+   end
+  elseif s.t==2 then
+   if tcnt(s)>6 then
+    s.t=0
+   end
+  end
+  s.c=(s.c+1)%128
+  s.d=0
+  for p in all(s.p) do
+   p:upd()
+   if p.m!=s.m then s.d+=1 end
+  end
  end,
- ---
- update =function(s)
-  if s.y>119 then -- rollout
-   s.y -= (s.y-118)/2
-  end
-  s.para = max(s.para-1,0) 
-  -- crush check
-  if s.crush==0 and 
-     enemies:crushchk(s.x,s.y,t_sprite[26][5]) 
-     then
-    s.en_shot = false
-    s.crush = 1
-    s.combo = 1
-    sfx(sfx_.miss,1) -- miss
-    enemies:missed()
-  end
-  -- buttons
-  if s.crush==0 and 
-     s.para==0 then
-   local dx = 0
-   if btn(0) then
-    dx = -2
-   end
-   if btn(1) then
-    dx = 2
-   end
-   s.x = mid(5,s.x+dx,122)
-  end
-  if btn(5) then
-   if s.en_shot  and -- enable 
-      s.shot_release and 
-      s.mf == 0 then -- shot
-    sfx(sfx_.shot,1) --shot
-    s.mx=s.x
-    s.my=s.y-4
-    s.mf=1
-    s.shot_release = false
-   end
-  else
-   s.shot_release = true
-  end
-  -- missile update
-  if s.mf==1 then -- active
-   s.my -= 4
-   if s.my <= 0 then
-    s.combo = 1
-    s.mf=0 -- remove
-   end
-  end
-  -- missile hitcheck
-  if s.mf==1 then -- active
-   local a=enemies:hitrect(s.mx,s.my,5)
-   if a!=nil then -- hit
-    s.mf=0
-    a:hit()
-    s.kills += 1
-    s.combo = min(10, s.combo+1)
-    if a.ace then
-     s:extend()
+ drw=function(s)
+  if s.t==2 then
+   for i=0,128*64 do
+    if rnd(5)<3 then
+     pset(i%128,flr(i/128)*2,6)
     end
    end
-  end
-  if s.mf==0 then
-   enemies.stop = nil
-  end
- end,
- ---
- draw =function(s)
-  -- ship
-  if s.crush == 0 then
-   if s.mf==0 then
-    putat(32,s.x,s.y-4,0)
-   end
-   putat(s.para>0 and 34 or 26,
-      s.x+s.para%2,s.y,0)
-  else
-   s.crush +=1 -- crush animation timer
-   --sprfr(s.x,s.y,ta_boom,s.crush)
-   if s.crush<24 then
-    putat(27+flr(s.crush/8),
-          s.x,s.y+s.crush/4,0)
-   end
-  end
-  -- missile
-  if s.mf>0 then
-   putat(32,s.mx,s.my,0)
-  end
- end,
- ---
- rollout =function(s)
-  s.rest-=1
-  s.x=63
-  --s.y=118
-  s.y=127+16
-  --s.mx=-200
-  --s.my=-200
-  s.mf=0 -- missile rest
-  s.en_shot = false
-  s.shot_release= true
-  s.crush = 0 
-  s.kills = 0 -- kills w/o crush
-  s.para = 0 -- paralized
- end,
- ---
- barrier =function(s,x,y,r)
-  if not in_range(x,0,127) then
    return
   end
-  local d = get_dist(s.x,s.y,x,y)
-  if d<r+4 then
-   s.para = 15
-  end
-  d = get_dist(s.mx,s.my,x,y)
-  if d>=r and d<r+4 then
-   s.mf=0 -- erased
+  for p in all(s.p) do
+   p:drw()
   end
  end,
- ---
- is_empty =function(s)
-  return s.rest<=1
+ set=function(s,m)
+  s.m=m % 16
+  s.c=0
+  s.t=flr(m/16)--t:transition 0/nil:now 1:natural 2:noiz
+  tini(s)
  end,
- ---
- is_crush =function(s)
-  return s.crush!=0
- end,
- ---
- is_idle =function(s)
-  return s.mf==0
+ idle=function(s)
+  return s.d==0
  end,
 }
-
------------------------------
--- background ---------------
-
-stars={ -- bg particles
- -- types
- flow = 1,
- grid = 2,
- storm= 3,
- -- operations
- init =function(s) -- generate 64
-  s.pts={} -- particles
-  for p=1,64 do
-   s.pts[p]={x=rnd(127),
-             y=rnd(140),
-             v=(rnd(3)+1)/2,
-             f=flr(rnd(20)),
-             i=8+((p-1)%8)*16,
-             j=flr((p-1)/8)*16,
-             m=s.flow}
-  end
-  s.posy = 0 -- grid pos-x
-  s.mode = s.flow -- stars
-  s.next = s.mode
-  s.stat = 0 -- not opening/closing
-  s.count= 0
-  s.sfrm = 0 -- for storm
+_pts={
+ ini=function(s)
+  s.h,s.l=0,0
  end,
-
- gradto =function(s,m)
-  s.mode = m
+ add=function(s,v)
+  s.l+=v
+  s.h+=flr(s.l/10000)
  end,
-
- switchto =function(s,m)
-  if s.next == m then
-   return
-  end
-  s.next  = m -- next mode
-  s.stat  = 1 -- closing
-  s.count = 0 -- transition count
-  if s.mode==stars.storm then
-   music(music_.warpout)
-  end
+ drw=function(s)
+  local st=""..s.l.."0"
+  if s.h>0 then st=""..s.h..st end
+  print(st,24-(#st*4),0)
  end,
-
- _set_pts =function(s,mode)
-  for p in all(s.pts) do
-   p.m = mode
-  end
- end,
- 
- update =function(s)
-  if s.stat!=0 then -- opening or closing
-   if s.mode==stars.grid then
-    s.count += 9
-   elseif s.mode==stars.storm then
-    --s.count += 4
-   else
-    s.count=149
-   end
-   s.count += 1
-   if s.count>=150 then
-    s.mode = s.next
-    camera(0,0)
-    s:_set_pts(s.mode)
-    s.stat = s.stat==1 and 2 or 0
-    s.count = 0
-   end
-  else
-    s.count = 150
-  end 
-  -- rotate grid position
-  s.posy +=1
-  if s.posy>=128 then
-   s.posy=0 end
-  -- storm forces
-  if s.stat==1 then -- not opening
-   s.sfrm = 150-s.count
-  else
-   s.sfrm = s.count
-  end
-  -- particles
-  for p in all(s.pts) do
-   -- flow coord
-   p.y+=p.v
-   if p.y>127 then
-    -- rewind and mode change
-    p.y-=128
-    p.m=s.mode
-   end
-   -- twincle
-   p.f+=1
-   if(p.f>20)p.f=0
-   -- for mode:3(storm)
-   if p.m==stars.storm then
-    p.y+=(p.v*s.sfrm)/150
-    if p.v>1 then   -- near
-     p.x+=p.v/(151-s.sfrm)
-     if p.x>127 then
-      p.x=0
-     end
-    else            -- far
-     p.x-=p.v/(151-s.sfrm)
-     if p.x<0 then
-      p.x=127
-     end
-    end 
-   end
-  end
- end,
-
- draw =function(s)
-  if s.mode==stars.storm and 
-     flr(rnd(151-s.sfrm))==0 then
-   cls(1)
-   if s.sfrm>120 then
-    camera(rnd(3)-2,0)
-   else -- delay charge
-    enemies.chg_cnt+=1
-   end
-  end
-  for i,p in pairs(s.pts) do
-   if p.m==s.flow then
-    color(6)
-    if p.f<10 then
-     pset(p.x,p.y) end
-   elseif p.m==2 then
-    pset(p.i,(s.posy+p.j)%128,3)
-   elseif p.m==3 then
-    if p.f<10 then
-     line(p.x,p.y,
-      p.x,p.y+p.v*5*s.sfrm/150,13)
-    end 
-   end
-  end
-  if s.mode==stars.grid and
-   s.stat!=0 then
-   for i=0,128*128-1 do
-    if rnd(5)<=2 then
-     pset(i%128,i/128,5)
-    end
-   end
-  end
- end
 }
-
------------------------------
--- foreground(hud) ----------
-
-typestr={
- new =function(s,_str,_x,_y,_sec,_col,_knd)
-  o={s=_str, t=_sec*30, x=_x, y=_y, c=_col, k=_knd}
-  if _x<0 then -- center
-   o.x = 64-#_str*2 -- /2 *4
-  end
-  o.cnt=0
-  o.update=s.update
-  o.draw=s.draw
-  return o
+_fg={
+ -- string {str,x,y,color,maxct,blink,vy,ct}
+ ini=function(s)
+  s.st={}
  end,
- update =function(s)
-  if s.cnt>=s.t then
-   s.s=nil
-   return
-  end
-  s.cnt+=1
+ str=function(s,st,x,y,cl,ct,op,vy)
+  if x<0 then x=64-(#st*2) end --center
+  if vy==nil then vy=0 end
+  s.st[#s.st+1]={s=st,x=x,y=y,c=cl,t=ct,o=op,v=vy,n=0}
  end,
- draw =function(s)
-  if s.s==nil then
-   return
-  end
-  color(s.c)
-  local str = s.s
-  if s.k==1 and s.cnt%20<10 then
-   str=sub(s.s,1,s.cnt/2)
-   str=str.."_"
-  end
-  if s.k>1 and s.cnt==4 then
-   return
-  end
-  if s.k==3 then
-   map(0,1,0-(s.cnt % 8),53,17,1)
-   map(0,1,(s.cnt % 8)-8,65,17,1)
-   if s.cnt % 3 > 0 then
-    for i=1,enemies.anum do
-     spr(78,enemies.annes[i].x-2,75)
-    end
+ upd=function(s)
+  local i
+  for i in all(s.st) do
+   i.n+=1
+   i.y+=i.v
+   if i.t>0 and i.n>=i.t then
+    del(s.st,i)
    end
-  elseif s.k==4 then
-   putat(35,s.x,s.y,0)
-   s.y-=0.5
   end
-  print(str,s.x,s.y)
- end
-}
-hud={
- ccnt = 0, -- console counter
- csec = 0, -- console limit
- types={}, --nil,nil,nil,nil},
- xnns ={}, -- combos
- ---
- update =function(s)
-  for i in all(s.types) do
-    i:update()
-    if not i.cnt then -- ==nil
-     del(s.types, i)
-    end
-   end
  end,
- ---
- draw =function(s)
+ drw=function(s)
+  local i
   color(7)
-  print(score:str(),0,0)
-  if player.rest>=2 then
-   for i=1,(player.rest-1) do
+  -- score
+  _pts:drw()
+  -- combos
+  if _cmb>1 then
+   spr(76,65,0)
+   print(" ".._cmb,65,0)
+  end
+  -- rest
+  if rest>=1 then
+   for i=1,(rest) do
     spr(29,i*4-4,120)
    end
   end 
-  if player.combo>0 then
-   putat(35,64,0,0)
-   print(player.combo,65,0)
-  end
-  -- console string
-  for t in all(s.types) do
-    t:draw()
-  end
-  -- stage flags
-  x=128-5
-  snum = stagenum==nil and 0 or stagenum-1
-  while snum>0 do
-   if snum>=5 then
-    snum -= 5
-    sp = 92
-   else
-    snum -= 1
-    sp = 77
+  ---str
+  for i in all(s.st) do
+   if i.o==nil or i.n!=4 then -- flicker
+    if i.o==2 then -- combo
+     spr(76,i.x,i.y)
+    end
+    print(i.s,i.x,i.y,i.c)
    end
-   spr(sp,x,120)
-   x -= 5
   end
-  -- debug
-  print(pcnt,0,20)
- end,
- ---
- console =function(s,str,x,y,sec)
-  if str then
-   add(s.types, typestr:new(str,x,y,sec,11,1))
-  end
- end,
- ---
- caution =function(s)
-  add(s.types, typestr:new("w a r n i n g",-1,58,2,8,3))
  end,
 }
 
------------------------------
--- stages -------------------
---[[function append_el()
- a = an_el:new(1,1)
- enemies:append(a,1)
- hud:caution()
-end
---]]
-function stages_init()
- for s in all(stages) do
-  s.back = s.back or stars.flow
-  s[3] = s[3] or 90 -- charge interval
- end
-end
-
-stages={
- { --stage 0 
-  {0x1e,0x3f},
-  {an_sim,an_sim}, 
-  str="tuning", -- aaa
-  back=stars.grid,
- },  
- { --stage 1 
-  {0x08,0x21},
-  {an_zk2,an_zk2},
-  30,
-  str="type:ann-z2",
- },
- { --stage 2 
-  {0x1e,0x3f},
-  {an_zk2,an_zk2},
-  str="intercept",
- },
- { --stage 3 
-  {0x12,0x21},
-  {an_gf,an_gf},
-  60,  -- 1.5s
-  str="type:ann-gf",
- },
- { --stage 4 
-  {0x12,0x3f,0x3f},
-  {an_gf,an_zk2,an_zk2},
-  str="evaluate",
-  boss = an_zk2s,
- },
- { --stage 5 
-  {0x12,0x2a,0x15,0x2a},
-  {an_zg,an_zg,an_zg,an_zg },
-  45,
-  str="corridor #1",
-  back=stars.storm,
-  entry =function(s)
-   music(music_.warpin) -- warp in
-  end,
- },
- { --stage 6 
-  {0x11,0x20},
-  {an_zk1,an_zk1},
-  30,
-  str="type:ann-z1",
- },
- { --stage 7 
-  {0x1e,0x3f,0x3f},
-  {an_zk1,an_gf,an_zk2}
- },
- { --stage 8 
-  {0x1e,0x3f,0x3f},
-  {an_gf,an_gf,an_zk2 },
-  str="cascades",
-  stocks={an_zk1,an_zk1},
- },
- { --stage 9 
-  {0x21,0x21},
-  {an_ge,an_ge},
-  30,
-  str="type:ann-ge",
- },
- { --stage 10 
-  {0x1e,0x3f,0x3f},
-  {an_ge,an_ge,an_ge},
-  str="newtypes",
-  boss = an_dm,
- },
- { --stage 11 
-  {0x21,0x20,0x21,0x01},
-  {an_zg,an_gg,an_zg,an_gg },
-  str="corridor 2",
-  40, -- charge interval init
-  back=stars.storm,
-  entry =function(s)
-   music(music_.warpin) -- warp in
-  end,
- },
- {  --stage 12
-  {0x2a,0x15,0x2a,0x15,0x2a},
-  {an_gf,an_gf,an_ge,an_zk1,an_zk1 },
-  str="spars",
-  stocks={an_ge,an_ge},
-  boss = an_el, --append_el,
- },
- -- stock
- -- accuracy
- -- dropout
- -- hypothesis
+-- scenes
+sc_title = {
+ ini=function(s)
+  --_nxt=nil
+  _fcnt = 0      -- global frame count
+  _fg:ini()
+  _bg:ini()
+  ship:ini()
+  convoy:ini()
+  ship.en=false
+  convoy.en=false
+  tini(s)
+ end,
+ upd=function(s)
+  if btn(1) and tcnt(s)>30 then
+   _pts:ini()
+   _cmb=1
+   --_stn=1
+   stage:ini(1)
+   score=0
+   rest=3
+   --ship:rout()
+   _nxt=sc_call --:ini()
+  end
+ end,
+ drw=function(s)
+  map(1,0,23,40,10,1)
+  print("rev.0.01r", 71,50)
+  spr(13,63,70)
+  spr(14,64-8,70-2,2,2)
+  print("hit button to start",25,90)
+ end,
 }
-
------------------------------
--- scenes (status) ----------
-
-scenes={
-
- title={
-  init =function(s)
-   stars:init()
-   --bg = backs.stars:new()
-   player:init()
-   enemies:init()
-   stage={}
-   s.timer = 0
-   return s
-  end,
-  ---
-  update =function(s)
-   if(s.timer<30)s.timer+=1
-   if btn(5) and s.timer==30 then
-    player:init()
-    player:rollout()
-    score:reset()
-    stagenum=13  -- 1
-    stage=stages[2]
-    scene=scenes.stage:init()
+sc_call={
+ ini=function(s)
+  tini(s)
+ end,
+ upd=function(s)
+  if not _bg:idle() then
+   tini(s)
+   return
+  end
+  local cnt=tcnt(s)
+  if cnt==15 then
+   if convoy.al==0 then
+    convoy:setup()
    end
-  end,
-  ---
-  draw =function(s)
-   map(1,0,23,40,10,1)
-   print("rev.0.92", 71,50)
-   putat(32,64,70-4,0)
-   putat(26,64,70,0)
-   print("hit button to start",25,90)
-  end,
- },
- 
- stage={ -- stage # call
-  init =function(s)
-   s.timer=0
-   s.reset=false
-   player.en_shot=false
-   enemies.en_charge=false
-   stage = stages[stagenum]
-   if stage.back!=nil then
-    stars:switchto(stage.back)
-   end
-   pcnt = 0
-   return s
-  end,
-  ---
-  update =function(s)
-   player:update()
-   enemies:update()
-   s.timer+=1
-  end,
-  ---
-  draw =function(s)
-   player:draw()
-   enemies:draw()
-   if stars.stat==0 then -- idle
-    if enemies:is_clear() then
-     enemies:reset()
-     sfx(sfx_.begin,0)
-     hud:console(stage.str,-1,90,3)
-     s.reset = true
+  elseif cnt==30 then
+   _fg:str("stage "..stage.num, -1,70,7,60)
+  elseif cnt==45 then
+   ship:rout()
+   convoy.en=true
+   _nxt=sc_round --:ini()
+  end
+ end,
+ drw=function(s)
+  print(" as ".._bg.d,64,32)
+ end,
+}
+sc_round={
+ ini=function(s)
+  --convoy:setup()
+  --ship.en=false
+ end,
+ upd=function(s)
+  --[[
+  if ship.en==false and 
+     convoy.en==false and 
+     ]]
+  if
+     ship:idle() and 
+     convoy:idle() then
+   if convoy.al==0 then
+    _nxt=sc_clear --:ini()
+   elseif ship.s>0 then --ship.en==false then
+    if rest>0 then
+     _nxt=sc_call --:ini()
+    else
+     _nxt=sc_over --:ini()
     end
-    color(7)
-    print("stage "..stagenum,50,72)
-    if s.timer==60 then
-     scene=scenes.play:init()
-    end
-   else
-    s.timer = 0
    end
   end
- },
- 
- play={
-  init =function(s)
-   player.en_shot    = true
-   enemies.en_charge = true
-   -- missile,bullet init
-   return s
-  end,
-  ---
-  update =function(s)
-   player:update()
-   enemies:update()
-   if player:is_crush() then
-    scene=scenes.miss:init()
-   elseif enemies:is_clear() then
-    scene=scenes.clear:init()
-   end
-   pcnt += 1
-  end,
-  ---
-  draw =function(s)
-   player:draw()
-   enemies:draw()
-  end
- },
-
- miss={
-   init =function(s)
-    player.en_shot    = false
-    enemies.en_charge = false
-    s.timer=0
-    return s
-   end,
-   ---
-   update =function(s)
-    s.timer +=1
-    player:update()
-    enemies:update()
-    if player:is_idle() and
-       enemies:is_idle() and
-       s.timer > 60 then
-     if player:is_empty() then
-      scene = scenes.over:init()
-     else
-      player:rollout()
-      if enemies:is_clear() then
-       scene = scenes.clear:init()
-      else
-       scene = scenes.stage:init()
+  local m=false -- missed
+  for a in all(convoy.ar) do
+   _gpx=-5
+   if a.md>0 then
+    -- missile vs enemy
+    if ship.m.st and ship.m:hit(a) then
+     if false==convoy.go then
+      dlog(" but: "..a.x..","..a.y.." x "..ship.m.x..","..ship.m.y)
+     end
+     local p=a.pt
+     if a:fly() then 
+      p*=2*_cmb
+      if _cmb>1 then
+       _fg:str(" ".._cmb,a.x-8,a.y-8,7,20,2,-0.5)
       end
      end
-    end
-   end,
-   ---
-   draw =function(s)
-    player:draw()
-    enemies:draw()
-   end
- },
-
- clear={
-  init =function(s)
-   s.timer = 0
-   return s
-  end,
-  ---
-  update =function(s)
-   s.timer +=1
-   player:update()
-   enemies:update()
-   if player:is_idle() and
-      enemies:is_idle() then
-    if stagenum==#stages then
-     scene =scenes.complete:init()
-    elseif s.timer>30 then
-     -- to nextstage
-     stagenum += 1
-     scene =scenes.stage:init()
-     if stage.entry then
-      stage:entry()
+     if _cmb<10 and not a:fly() then _cmb+=1 end
+     _pts:add(p)
+     a.md=7
+     ship.m.st=nil
+    elseif not a:fly() then
+     if _gpx>=-2 then
+      convoy.go=false
+      dlog("stop: "..a.x..","..a.y.." x "..ship.m.x..","..ship.m.y)
      end
     end
-   end  
-  end,
-  ---
-  draw =function(s)
-   player:draw()
-   enemies:draw() -- bullets
-   if stage.clear then
-    if not stage:clear() then
-     s.timer -=1
-    end
+    -- ship vs enemy
+    if ship:hit(a) then m=true end
+   end
+   if not ship.m.st then
+    convoy.go=true
    end
   end
- },
-
- over={
-   init =function(s)
-    return s
-   end,
-   ---
-   update =function(s)
-    music(-1)
-    enemies:update()
-    if btn(5) then
-     scene = scenes.title:init()
-    end
-   end,
-   ---
-   draw =function(s)
-    enemies:draw()
-    print("game over", 48,64,7)
-   end
- },
-
- complete={
-  init =function(s)
-   return s
-  end,
-  update =function(s)
-   --endanim
-   if btn(5) then
-    scene = scenes.title:init()
-   end
-  end,
-  ---
-  draw =function(s)
-   print("to be continued...",28,65)
+  -- bullets vs ship
+  for b in all(convoy.br) do
+   if ship:hit(b) then m=true end
   end
- }
+  if m then
+   ship:miss()
+   _cmb=1
+   convoy.en=false
+   --[[
+   if rest==1 then 
+    _nxt=sc_over --:ini() 
+   end
+   ]]
+  end
+ end,
+ drw=function(s)
+ end,
 }
+sc_clear = {
+ ini=function(s)
+  tini(s)
+  ship.en=false
+  _fg:str("t.b.d", -1,70,7,30)
+ end,
+ upd=function(s)
+  if tcnt(s)==30 then
+   -- if not laststage
+   --_stn += 1
+   stage:ini()
+   _nxt=sc_call --:ini()
+  end
+ end,
+ drw=function(s)
+  sc_round.drw(s)
+ end,
+}
+sc_over = {
+ ini=function(s)
+  tini(s)
+  -- bgm
+ end,
+ upd=function(s)
+  if tcnt(s)==30 then
+   _fg:str("game over", -1,70,7,-1)
+  elseif tcnt(s)>30 and btn(1) then
+   _nxt=sc_title --:ini()
+  end
+ end,
+ drw=function(s)
+  sc_round.drw(s)
+ end,
+}
+
+stage = {
+ ini=function(s,n)
+  s.max = #s.t
+  s.num = n==nil and s.num+1 or n
+  override(s,s.t[s.num])
+  _bg:set(s.bg)
+ end,
+ t={{
+ fm = {0x3f,0x2a,0x3f}, --,0x15},
+ ty = {an_1,an_1,an_0,an_0},
+ st = {an_0,an_0}, -- stocks
+ bg = 0x21,
+ ci = 40,  -- charge interval
+ si = 20,  -- shot interval
+ }, {
+ fm = {0x3f,0x21,0x1e}, --,0x15},
+ ty = {an_0,an_1,an_0,an_0},
+ st = {an_0,an_0}, -- stocks
+ bg = 0x20,
+ ci = 40,  -- charge interval
+ si = 20,  -- shot interval
+ }},
+}
+
+function _init()
+ --_nxt=nil
+ _pts:ini()
+ _cmb=1
+ scn=sc_title
+ sc_title:ini()
+ --_fg:ini()
+ --_bg:ini()
+ --ship:ini()
+ --convoy:ini()
+ score=0
+ rest=3
+ dlog("----","log.txt")
+end
+
+function _update()
+ _fcnt += 1
+ _bg:upd()
+ if _nxt!=nil then
+  _nxt:ini()
+  scn=_nxt
+  _nxt=nil
+ end
+ assert(scn!=nil)
+ scn:upd()
+ convoy:upd()
+ ship:upd()
+ _fg:upd()
+end
+
+function _draw()
+ cls(0)
+ _bg:drw()
+ scn:drw()
+ convoy:drw()
+ ship:drw()
+ _fg:drw()
+ 
+  -- debug
+  print(ship.s,0,64)
+  print(ship.m.st,40,64)
+  print(ship:idle(),0,72)
+  print(ship.en,40,72)
+  print(convoy:idle(),0,80)
+  print(convoy.en,40,80)
+  print(convoy.al,0,88)
+  print(convoy.ac,0,96)
+  print(_bg.d,0,104)
+end
+
 
 
 __gfx__
@@ -2142,12 +996,12 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003300000330000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008088808000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000808080000000000
-00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000000000000000000000080800000000000
-00000044444444400000004444444440000000444444444000000804444440000000080444444000000008044444400000000000000000000008000000000000
-00080444fef4444400080444fef4444400080444e5f4444400004444444444400000444444444440000044444444444000000000aaa000000000000000000000
-0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000707aaa000000000000000000000
-0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000070a00000000000000000000000
-00000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000707a00000000000000000000000
+00000000444444000000000044444400000000004444440000000000000000000000000000000000000000000000000070700000000000000080800000000000
+00000044444444400000004444444440000000444444444000000804444440000000080444444000000008044444400007000000000000000008000000000000
+00080444fef4444400080444fef4444400080444e5f4444400004444444444400000444444444440000044444444444070700000aaa000000000000000000000
+0044400ff55444440044400ff5f444440044400ff5f44444000008000fef4444000008000fef4444000008000e5f444400000000aaa000000000000000000000
+0008000ffff444440008000ffff444440008000ffff4444400000000ff55444400000000ff5f444400000000ff5f444400000000a00000000000000000000000
+00000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000ffff444400000000a00000000000000000000000
 00000000ff55444400000000ff5f444400000000ff5f444400000000ffff444400000000ffff444400000000ffff444400000000080000000000000000000000
 000000000eff4444000000000eff4444000000000e5f444400000000ff55444400000000ff5f444400000000ff5f444400000000880000000000000000000000
 000000004444444000000000444444400000000044444440000008000fef4444000008000fef4444000008000e5f444400000000080000000000000000000000
