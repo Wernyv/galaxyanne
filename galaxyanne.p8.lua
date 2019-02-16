@@ -39,18 +39,13 @@ end
 function tini(s)
  s._fc=_fcnt
 end
---[[
-function tsec(s)
- return (_fcnt-s._fc)/30
-end
-]]
 function tcnt(s)
  return _fcnt-s._fc
 end
 
 -- debug log
 function dlog(str)
- printh(str,"log.txt")
+ --printh(str,"log.txt")
 end
 
 sfx_={
@@ -69,14 +64,14 @@ sprites = {
  {38,  -9, -5,  -3,-3,4,4 }, -- /
  {64, -10, -6,  -3,-3,4,4 },
  {70, -10, -7,  -3,-3,4,4 }, -- -
- {14,  -7,-11,  -4,-3,4,3 }, --player
+ {14,  -7,-11,  -4,-3,4,0 }, --player
  {13,   0, -2,  -1,-2,1,3 }, --missile
  {12,   0, -4,  -1,-2,1,3 }, --bullet |
  {128, -7, -7,  0,0,0,0},
 }
 
 spr0 = {
- x=0, y=0, sp=1, mo=0, c=0,
+ x=0, y=0, sp=1, mo=0, _c=0,
  new=function(s)
   return override({},s)
  end,
@@ -84,7 +79,7 @@ spr0 = {
 --  lasts=s
   s.x+=s.vx
   s.y+=s.vy
-  s.c=(s.c+1)%255
+  s._c=(s._c+1)%255
  end,
  drw=function(s)
   local sp = sprites[s.sp]
@@ -99,7 +94,7 @@ spr0 = {
     pal(flr(p/16),p%16)
    end
   end
-  spr(sp[1]+mo, s.x+dx,s.y+dy, sz,sz, s.sh, s.sv)
+  spr(sp[1]+mo, rup(s.x+dx),rup(s.y+dy), sz,sz, s.sh, s.sv)
   pal()
   --color(11)
   --rect(s.x+sp[4],s.y+sp[5],s.x+sp[6],s.y+sp[7])
@@ -136,7 +131,6 @@ ship = {
  ini=function(s)
   underride(s,spr0)
   s.en=false
-  dlog("ini:en=false")
   s.s=2
   s.m=missile:new()
  end,
@@ -165,8 +159,8 @@ ship = {
   if s.s==1 then --miss
    --s.vy+=0.1
    s.sp=10
-   s.mo=s.c/5 --s.c%5
-   if s.c==15 then
+   s.mo=flr(tcnt(s)/5) --s.c%5
+   if tcnt(s)==15 then
     s.s=2 -- out of screen
    end
   end
@@ -188,14 +182,13 @@ ship = {
    s.s=0
   end
   s.en=true
-  dlog("rout:en=true")
  end,
  miss=function(s)
-  s.c=0
+  tini(s)
   s.s=1 -- miss
   s.vy=0.1
   s.en=false -- disable
-  dlog("rmiss:en=false")
+  sfx(sfx_.miss,1) --shot
  end,
  idle=function(s)
   return s.s!=1 and s.m.st==nil
@@ -236,12 +229,12 @@ bullet={
   o.x,o.y,o.vx,o.vy=x,y,vx,vy
   return o
  end,
- drw=function(s)
-  spr0.drw(s)
+-- drw=function(s)
+--  spr0.drw(s)
 --  line(s.x,s.y,s.x+s.vx*100,s.y+s.vy*100)
 --  print(""..s.vx,s.x+5,s.y-5)
 --  print(""..s.vy,s.x+5,s.y+1)
- end,
+-- end,
 }
 convoy={
  dc=0,  -- dance counter
@@ -258,13 +251,14 @@ convoy={
  upd=function(s)
   s.ci+=1
   s.dc = (s.dc+0.1)%4
+  if stage.ci!=nil then stage.ci=max(15,stage.ci-0.02) end
   local i,a
   if tcnt(s)%4==0 and s.go then s.x+=s.vx end
   s.al=0 --alives
   s.ac=0 --charges
   for i,a in pairs(s.ar) do
    a.px = ((i-1) % 6)*16+18 + s.x
-   a.py = flr((i-1)/6)*14+15
+   a.py = flr((i-1)/6)*14+10
    if a.md>0 then
     s.al+=1
     if a.px<6   then s.vx=1 end
@@ -293,10 +287,10 @@ convoy={
   end
  end,
  noceil=function(s,a)
-  if a.n<6 or s.ar[a.n+1-6].md<=0 then -- dead:0, dummy:-1
-   return true
-  end
-  return false
+  --local c=s.ar[a.n+1-6].md
+  return a.n<6 or s.ar[a.n+1-6].md==4
+   --<=0 or cthen -- dead:0, dummy:-1
+   --return true
  end,
  drw=function(s)
   local i,a
@@ -312,9 +306,6 @@ convoy={
   end
   for b in all(s.br) do
    b:drw()
-  end
-  if not s.go then
-   print("stop",64,64,8)
   end
  end,
  setup=function(s)
@@ -360,8 +351,9 @@ an_0 = {
  tx=8,  -- turn margin
  tv=2,  -- turn enable vx
  pt=1,  -- pts(convoy).
- ff=30, -- fire freq
- ft=15, -- fire trig
+ ff=50, -- fire freq
+ ft={15,22}, -- fire trig
+ pl={0x8B},
  new = function(s,n)
   s.n=n
   s.md=1
@@ -457,13 +449,11 @@ an_0 = {
     s.md=1
    else
     s.y=-16
+    s.x=mid(8,s.x,120)
     s.lc+=1
    end
   end
-  -- if tcnt(s)%20==10 then
-  if cont(tcnt(s)%s.ff,s.ft) then
-   s:_fire()
-  end
+  s:_trig()
   s:_rotp(ship)
   if s.lc>=3 and s.y>80 then
    s.md=5   -- escape
@@ -501,8 +491,13 @@ an_0 = {
    if o==ship then s.rt=mid(5,s.rt,11) end
   end
  end,
+ _trig=function(s)
+  if cont(tcnt(s)%s.ff,s.ft) then
+   s:_fire()
+  end
+ end,
  _fire=function(s)
-  convoy:shot(bullet:new(s.x,s.y,0,2))
+  convoy:shot(bullet:new(s.x,s.y,0,3))
  end,
  draw = function(s)
   -- 0 0,-,-
@@ -545,8 +540,8 @@ an_0 = {
  end,
 }
 an_1 = {
+ pl={0xf4},
  new=function(s,i)
-  s.pl={0xf4}
   return override(an_0:new(i),s)
  end,
  draw=function(s)
@@ -557,10 +552,15 @@ an_1 = {
  _fire=function(s)
   local a=step(angl(s,ship),1/24)
   if abs(a)<0.120 then
-   local vx,vy=vect(a,2.5)
-   dlog("a:"..a.." vx:"..vx.." vy:"..vy)
+   local vx,vy=vect(a,3)
    convoy:shot(bullet:new(s.x,s.y,vx,vy))
   end
+ end,
+}
+an_gf = {
+ pl={0x8c},
+ new=function(s,i)
+  return override(an_1:new(i),s)
  end,
 }
 function step(v,s)
@@ -572,9 +572,9 @@ function angl(s,d)
  return atan2(d.y-s.y,s.x-d.x)
 end
 function vect(a,l)
- local x,y=-sin(a),cos(a)
- return x*l,y*l
+ return -sin(a)*l,cos(a)*l
 end
+
 bgp = {
  m=0, -- stars/grid/warp
  new=function(s,i)
@@ -806,7 +806,6 @@ sc_round={
     -- missile vs enemy
     if ship.m.st and ship.m:hit(a) then
      if false==convoy.go then
-      dlog(" but: "..a.x..","..a.y.." x "..ship.m.x..","..ship.m.y)
      end
      local p=a.pt
      if a:fly() then 
@@ -822,7 +821,6 @@ sc_round={
     elseif not a:fly() then
      if _gpx>=-2 then
       convoy.go=false
-      dlog("stop: "..a.x..","..a.y.." x "..ship.m.x..","..ship.m.y)
      end
     end
     -- ship vs enemy
@@ -894,18 +892,18 @@ stage = {
  end,
  t={{
  fm = {0x3f,0x2a,0x3f}, --,0x15},
- ty = {an_1,an_1,an_0,an_0},
+ ty = {an_1,an_gf,an_0,an_0},
  st = {an_0,an_0}, -- stocks
  bg = 0x21,
- ci = 40,  -- charge interval
- si = 20,  -- shot interval
+ ci = 50,  -- charge interval
+-- si = 20,  -- shot interval
  }, {
  fm = {0x3f,0x21,0x1e}, --,0x15},
- ty = {an_0,an_1,an_0,an_0},
+ ty = {an_0,an_1,an_0,an_gf},
  st = {an_0,an_0}, -- stocks
  bg = 0x20,
- ci = 40,  -- charge interval
- si = 20,  -- shot interval
+ ci = 30,  -- charge interval
+-- si = 20,  -- shot interval
  }},
 }
 
@@ -947,16 +945,8 @@ function _draw()
  ship:drw()
  _fg:drw()
  
-  -- debug
-  print(ship.s,0,64)
-  print(ship.m.st,40,64)
-  print(ship:idle(),0,72)
-  print(ship.en,40,72)
-  print(convoy:idle(),0,80)
-  print(convoy.en,40,80)
-  print(convoy.al,0,88)
-  print(convoy.ac,0,96)
-  print(_bg.d,0,104)
+ -- debug
+ if(stage.ci!=nil) print("ci:"..stage.ci,0,100)
 end
 
 
