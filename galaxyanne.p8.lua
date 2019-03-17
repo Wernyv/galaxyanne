@@ -56,6 +56,18 @@ function dlog(str)
  --printh(str,"log.txt")
 end
 
+function step(v,s)
+ if v>=0.5 then v=-(1-v) end
+ v += sgn(v)*(s/2)
+ return int(v/s)*s
+end
+function angl(s,d)
+ return atan2(d.y-s.y,s.x-d.x)
+end
+function vect(a,l)
+ return -sin(a)*l,cos(a)*l
+end
+
 sfx_={
  shot=0,
  charge=1,
@@ -146,7 +158,7 @@ ship = {
   if s.y<119 then -- rollout complete
    s.y,s.vy = 119,0
   end
-  if s.en then
+  if s.en and s.y>110 then
    if btn(0) then s.x=max(5,s.x-2)   end
    if btn(1) then s.x=min(122,s.x+2) end
    if btn(4) then
@@ -224,9 +236,16 @@ missile = {
 bullet={
  sup=spr0,
  sp=9,
- ini=function(s,x,y,vx,vy)
+ ini=function(s,x,y,vx,vy,pl)
   s.x,s.y,s.vx,s.vy=x,y,vx,vy
+  s.pl=pl
  end,
+ --[[
+ drw=function(s)
+  color(3)
+  line(s.x,s.y,s.x+s.vx*30,s.y+s.vy*30)
+  spr0.drw(s)
+ end,]]
 }
 convoy={
  dc=0,  -- dance counter
@@ -304,7 +323,8 @@ convoy={
   local i,j
   local n=0
   s.ar={}
-  --local _st=stage[_stn]
+  s.sc={0,0,0,0,0,0} --stock counter
+  s.dc=nil --drop column
   for j=1,4 do
    local b=0x20
    for i=1,6 do
@@ -336,14 +356,15 @@ an_0 = {
  sp=1, mo=0, rt=0,
  bl=0, 
  ct=0,  -- multi counter
- cy=1.2,-- chg vy
+ cy=1.5,-- chg vy
  ax=0.1,-- x_accel
  mx=3,  -- max vx
  tx=8,  -- turn margin
  tv=2,  -- turn enable vx
  pt=1,  -- pts(convoy).
  ff=50, -- fire freq
- ft={15,22}, -- fire trig
+ ft={10,22}, -- fire trig
+ fs=1,  -- fire angle limit fs/24
  pl={0x8B},
  md=1,
  om=0,
@@ -428,17 +449,17 @@ an_0 = {
    s.vy,s.ay=s.cy,0
    s.rt=8
   end
-  local dx=s.x-ship.x
-  if sgn(dx)==sgn(s.ax) and abs(dx)>s.tx and abs(s.vx)>=s.tv then
-    s.ax=-s.ax
-  end
+  s:_mov()
   s.vx = mid(-s.mx, s.ax+s.vx, s.mx)
   if s.y>128+8 then
    if not convoy.lp then
     s.md=1
    else
     s.y=-16
-    s.x=mid(8,s.x,120)
+    if s.x!=mid(0,s.x,127) then
+     s.x=mid(0,s.x,127)
+     s.vx=0
+    end
     s.lc+=1
    end
   end
@@ -446,6 +467,12 @@ an_0 = {
   s:_rotp(ship)
   if s.lc>=3 and s.y>80 then
    s.md=5   -- escape
+  end
+ end,
+ _mov=function(s)
+  local dx=s.x-ship.x
+  if sgn(dx)==sgn(s.ax) and abs(dx)>s.tx and abs(s.vx)>=s.tv then
+    s.ax=-s.ax
   end
  end,
  _esc = function(s)
@@ -485,8 +512,17 @@ an_0 = {
    s:_fire()
   end
  end,
+ --[[
  _fire=function(s)
   convoy:shot(new(bullet,s.x,s.y,0,3))
+ end,]]
+ _fire=function(s)
+  local a=step(angl(s,ship),1/24)
+ -- if abs(a)<0.120 then
+   a = mid(a,-s.fs/24,s.fs/24)
+   local vx,vy=vect(a,3)
+   convoy:shot(new(bullet,s.x,s.y,vx,vy,s.fp))
+ -- end
  end,
  draw = function(s)
   -- 0 0,-,-
@@ -530,33 +566,19 @@ an_0 = {
 }
 an_1 = {
  sup=an_0,
+ fs=1,
  pl={0xf4},
  draw=function(s)
   an_0.draw(s)
  end,
- _fire=function(s)
-  local a=step(angl(s,ship),1/24)
-  if abs(a)<0.120 then
-   local vx,vy=vect(a,3)
-   convoy:shot(new(bullet,s.x,s.y,vx,vy))
-  end
- end,
 }
-an_gf = {
+an_8 = {
  sup=an_1,
- pl={0x8c},
+ fs=0,
+ pl={0x43,0x8b,0xfb,0xe3},
+ ft={7,30},
+ fp={0x7b,0xe3}, -- bullet pal
 }
-function step(v,s)
- if v>=0.5 then v=-(1-v) end
- v += sgn(v)*(s/2)
- return int(v/s)*s
-end
-function angl(s,d)
- return atan2(d.y-s.y,s.x-d.x)
-end
-function vect(a,l)
- return -sin(a)*l,cos(a)*l
-end
 
 bgp = {
  m=0, -- stars/grid/warp
@@ -818,7 +840,7 @@ sc_round={
 sc_clear = {
  ini=function(s)
   tini(s)
-  ship.en=false
+  --ship.en=false
   _fg:str("t.b.d", -1,70,7,30)
  end,
  upd=function(s)
@@ -856,17 +878,15 @@ stage = {
   _bg:set(s.bg)
  end,
  t={{
- fm = {0x3f,0x2a,0x3f}, --,0x15},
- ty = {an_1,an_gf,an_0,an_0},
- st = {an_0,an_0}, -- stocks
+ fm = {0x0c,0x1e}, --,0x15},
+ ty = {an_8,an_8},
  bg = 0x21,
  ci = 50,  -- charge interval
  }, {
  fm = {0x3f,0x21,0x1e}, --,0x15},
- ty = {an_0,an_1,an_0,an_gf},
- st = {an_0,an_0}, -- stocks
+ ty = {an_0,an_0,an_0},
  bg = 0x20,
- ci = 30,  -- charge interval
+ ci = 50,  -- charge interval
  }},
 }
 
