@@ -53,7 +53,7 @@ end
 
 -- debug log
 function dlog(str)
- --printh(str,"log.txt")
+ printh(str,"log.txt")
 end
 
 function step(v,s)
@@ -88,6 +88,7 @@ sprites = {
  {13,   0, -2,  -1,-2,1,3 }, --missile
  {12,   0, -4,  -1,-2,1,3 }, --bullet |
  {128, -7, -7,  0,0,0,0},
+ {44,  -7, -4,  -3,-3,4,4 }, --ball ()
 }
 
 spr0 = {
@@ -267,14 +268,16 @@ convoy={
   if tcnt(s)%4==0 and s.go then s.x+=s.vx end
   s.al=0 --alives
   s.ac=0 --charges
-  for i,a in pairs(s.ar) do
-   a.px = ((i-1) % 6)*16+18 + s.x
-   a.py = flr((i-1)/6)*14+10
+  for j=0,5 do
+  for i=0,5 do
+   local a=s.ar[j*6+i+1]
+   if not a then break end
+   a.px = i*16+18 + s.x
+   a.py = j*14+10
    if a.md>0 then
     s.al+=1
     if a.px<6   then s.vx=1 end
     if a.px>120 then s.vx=-1 end
-    --if s.ci>=stage[_stn].ci then
     if s.ci>=stage.ci then
      if s:noceil(a) and rnd(30)<1 and s.en then
       a:tochg()
@@ -283,8 +286,27 @@ convoy={
     end
     a:upd()
     if a.md==2 then s.ac+=1 end -- in convoy
+--  elseif a.md==0 and s.sc[i+1]>0 then
+--     s:drop(i,j)
    end
-  end
+  end --i
+  end --j
+  -- drop
+  for i=1,6 do
+   local lj=nil
+  for j=6,1,-1 do
+   local d=j*6+i-7
+   if s.ar==nil or s.ar[d]==nil or s.ar[d].md==-1 then
+    
+   elseif s.ar[d].md==0 then
+    lj=d
+   elseif lj then
+    s.ar[lj]=s.ar[d]
+    s.ar[d]=andead
+    lj=d
+   end
+   
+  end end
   if s.ac==s.al then sfx(-1,0) end
   for b in all(s.br) do
    b:upd()
@@ -296,6 +318,20 @@ convoy={
   else
    s.lp=false
   end
+ end,
+ drop=function(s,i,j) -- if upper alive to swap and drop if top then append
+  local d=j*6+i+1
+  local e=nil
+  local k
+  for k=d-6,0,-6 do
+   if s.ar[k].md==2 then --convoy
+    s.ar[d]=s.ar[k]
+    s.ar[k] = andead
+    return
+   end
+  end
+  --append 
+  s.sc[i+1] -= 1
  end,
  noceil=function(s,a)
   --local c=s.ar[a.n+1-6].md
@@ -323,8 +359,7 @@ convoy={
   local i,j
   local n=0
   s.ar={}
-  s.sc={0,0,0,0,0,0} --stock counter
-  s.dc=nil --drop column
+  s.sc={} --stock counter
   for j=1,4 do
    local b=0x20
    for i=1,6 do
@@ -335,6 +370,7 @@ convoy={
     end
     b/=2
     n+=1
+    s.sc[i]=stage.st==nil and 0 or #stage.st
    end
   end
   s.x,s.vx = 0,-1
@@ -349,13 +385,15 @@ convoy={
  end,
 }
 
+andead = {md=0}  -- the Z
+dummyan= {md=-1} -- #666
 an_0 = {
  sup=spr0,
  x=0,  y=0,
  vx=0, vy=0,
  sp=1, mo=0, rt=0,
  bl=0, 
- ct=0,  -- multi counter
+ --<delete> ct=0,  -- multi counter
  cy=1.5,-- chg vy
  ax=0.1,-- x_accel
  mx=3,  -- max vx
@@ -370,27 +408,23 @@ an_0 = {
  om=0,
  ini=function(s,n)
   s.n=n
+  s.i=(n-1)%6 +1
  end,
  upd=function(s)
   if s.om!=s.md then 
    tini(s) 
   end
-  local nm=s.md
-  if s.md==1 then     -- 1:turn in
-   s:_tin()
-  elseif s.md==2 then -- 2:convoy
-   s:_cvy()
-  elseif s.md==3 then -- 3:turn out
-   s:_tout()
-  elseif s.md==4 then -- 4:charge
-   s:_chg()
-  elseif s.md==5 then -- 5:escape
-   s:_esc()
-  elseif s.md==6 then -- 7:drop
-  elseif s.md==7 then -- 6:hit
-   s:_hit()
+  local nm=s.md  -- md modified in _xx()
   -- 0:dead
   -- -1:dummy
+  if     nm==1 then s:_tin()  -- 1:turn in
+  elseif nm==2 then s:_cvy()  -- 2:convoy
+  elseif nm==3 then s:_tout() -- 3:turn out
+  elseif nm==4 then s:_chg()  -- 4:charge
+  elseif nm==5 then s:_esc()  -- 5:escape
+  elseif nm==7 then s:_hit()  -- 6:hit
+  elseif nm==6 then           -- 7:drop
+   assert(true)
   end
   s._anim(s)
   spr0.upd(s)
@@ -420,13 +454,19 @@ an_0 = {
  end,
  _cvy = function(s)
   s.rt=-1
-  s.x,s.y = s.px,s.py
-  s.sp=1
-  local dc=(flr(convoy.dc)+(s.n%6))%4
-  if dc%2==1 then
-   s.y-=1
-   s.x+=(dc==1 and -1 or 1)
-   s.sp=2
+  s.x = s.px
+  if s.y<s.py-1 then --drop
+   s.y += 1
+   s.sp=11
+  else
+   s.y = s.py
+   s.sp=1
+   local dc=(flr(convoy.dc)+(s.n%6))%4
+   if dc%2==1 then
+    s.y-=1
+    s.x+=(dc==1 and -1 or 1)
+    s.sp=2
+   end
   end
  end,
  _tout=function(s)
@@ -552,6 +592,7 @@ an_0 = {
   spr0.drw(s)
   if s.x<=-8 then spr(93,0,s.y-1) end
   if s.x>=135 then spr(93,120,s.y-1,1,1,true,false) end
+  print(""..s.i,s.x,s.y-8,4)
  end,
  _anim = function(s)
   if mid(1,s.md,6)==s.md then
@@ -880,6 +921,7 @@ stage = {
  t={{
  fm = {0x0c,0x1e}, --,0x15},
  ty = {an_8,an_8},
+ st = {an_0},
  bg = 0x21,
  ci = 50,  -- charge interval
  }, {
@@ -925,6 +967,17 @@ function _draw()
  
  -- debug
  if(stage.ci!=nil) print("ci:"..stage.ci,0,100)
+ if convoy.sc!=nil then
+  local i
+  for i=1,6 do
+   print(""..convoy.sc[i],6*i,70,6)
+  end
+  for i=1,12 do
+   if convoy.ar[i]!=nil then
+    print(""..convoy.ar[i].md,12*((i-1)%6),80+int(i/6)*6,6)
+   end
+  end
+ end
 end
 
 
