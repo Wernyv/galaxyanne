@@ -77,18 +77,18 @@ sfx_={
  extend=6,
 }
 
-sprites = {
- { 0,  -7, -4,  -3,-3,4,4 },
- { 6,  -7, -4,  -3,-3,4,4 }, -- |
- {32,  -7, -4,  -3,-3,4,4 },
- {38,  -9, -5,  -3,-3,4,4 }, -- /
- {64, -10, -6,  -3,-3,4,4 },
- {70, -10, -7,  -3,-3,4,4 }, -- -
- {14,  -7,-11,  -4,-3,4,0 }, --player
- {13,   0, -2,  -1,-2,1,3 }, --missile
- {12,   0, -4,  -1,-2,1,3 }, --bullet |
- {128, -7, -7,  0,0,0,0},
- {44,  -7, -4,  -3,-3,4,4 }, --ball ()
+sprt = {
+ { 0, 7, 4, 3,3,4,4 },
+ { 6, 7, 4, 3,3,4,4 }, -- |
+ {32, 7, 4, 3,3,4,4 },
+ {38, 9, 5, 3,3,4,4 }, -- /
+ {64,10, 6, 3,3,4,4 },
+ {70,10, 7, 3,3,4,4 }, -- -
+ {14, 7,11, 4,3,4,0 }, --player
+ {13, 0, 2, 1,2,1,3 }, --missile
+ {12, 0, 4, 1,2,1,3 }, --bullet |
+ {128,7, 7, 0,0,0,0 },
+ {44, 7, 4, 3,3,4,4 }, --ball ()
 }
 
 spr0 = {
@@ -103,9 +103,9 @@ spr0 = {
   s._c=(s._c+1)%255
  end,
  drw=function(s)
-  local sp = sprites[s.sp]
-  local dx = sp[2]
-  local dy = sp[3]
+  local sp = sprt[s.sp]
+  local dx = -sp[2]
+  local dy = -sp[3]
   if s.sh then dx=-15-dx end
   if s.sv then dy=-15-dy end
   local sz = fget(sp[1],0) and 1 or 2
@@ -117,15 +117,15 @@ spr0 = {
   end
   spr(sp[1]+mo, rup(s.x+dx),rup(s.y+dy), sz,sz, s.sh, s.sv)
   pal()
-  --color(11)
-  --rect(s.x+sp[4],s.y+sp[5],s.x+sp[6],s.y+sp[7])
+  color(11)
+  rect(s.x-sp[4],s.y-sp[5],s.x+sp[6],s.y+sp[7])
  end,
  hit=function(s,o)
-  local p1,p2=sprites[s.sp],sprites[o.sp]
+  local p1,p2=sprt[s.sp],sprt[o.sp]
   -- [4]xl [6]xr  [5]yu [7]yd
   if s.en!=false and o.en!=false then
-   local gx=min(o.x+p2[6]-s.x-p1[4],s.x+p1[6]-o.x-p2[4])
-   local gy=min(o.y+p2[7]-s.y-p1[5],s.y+p1[7]-o.y-p2[5])
+   local gx=min(o.x+p2[6]-s.x+p1[4],s.x+p1[6]-o.x+p2[4])
+   local gy=min(o.y+p2[7]-s.y+p1[5],s.y+p1[7]-o.y+p2[5])
    --[[
    s.x+p1[4] <= o.x+p2[6] and
    o.x+p2[4] <= s.x+p1[6] and
@@ -286,8 +286,6 @@ convoy={
     end
     a:upd()
     if a.md==2 then s.ac+=1 end -- in convoy
---  elseif a.md==0 and s.sc[i+1]>0 then
---     s:drop(i,j)
    end
   end --i
   end --j
@@ -296,13 +294,16 @@ convoy={
    local lj=nil
   for j=6,1,-1 do
    local d=j*6+i-7
-   if s.ar==nil or s.ar[d]==nil or s.ar[d].md==-1 then
-    
-   elseif s.ar[d].md==0 then
+   --if s.ar==nil or s.ar[d]==nil or s.ar[d].md==-1 then
+   --elseif s.ar[d].md==0 then
+   if s.ar and s.ar[d] and s.ar[d].md==0 then
     lj=d
    elseif lj then
     s.ar[lj]=s.ar[d]
     s.ar[d]=andead
+    bklj=lj
+    bkd=d
+    assert(lj>d)
     lj=d
    end
    
@@ -319,23 +320,11 @@ convoy={
    s.lp=false
   end
  end,
- drop=function(s,i,j) -- if upper alive to swap and drop if top then append
-  local d=j*6+i+1
-  local e=nil
-  local k
-  for k=d-6,0,-6 do
-   if s.ar[k].md==2 then --convoy
-    s.ar[d]=s.ar[k]
-    s.ar[k] = andead
-    return
-   end
-  end
-  --append 
-  s.sc[i+1] -= 1
- end,
  noceil=function(s,a)
   --local c=s.ar[a.n+1-6].md
-  return a.n<6 or cont(s.ar[a.n+1-6].md,{-1,0,4})
+  bka=a
+  bka2=a.n+1-8
+  return a.n<=6 or cont(s.ar[a.n+1-6].md,{-1,0,4})
    --<=0 or cthen -- dead:0, dummy:-1
    --return true
  end,
@@ -404,7 +393,7 @@ an_0 = {
  ft={10,22}, -- fire trig
  fs=1,  -- fire angle limit fs/24
  pl={0x8B},
- md=1,
+ md=1,  -- turn in
  om=0,
  ini=function(s,n)
   s.n=n
